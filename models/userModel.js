@@ -2,6 +2,7 @@ const mongoose = require("mongoose")
 const { isEmail } = require("validator")
 const bcrypt = require("bcrypt")
 
+
 const userSchema = new mongoose.Schema({
     email: {
         type: String,
@@ -14,9 +15,20 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
         minLength: 6
+    },
+    role:{
+        type:String,
+        required:true,
+        default:"User"
+    },
+    active:{
+        type:Boolean,
+        default:true
     }
 
-})
+},
+{ timestamps: true }
+)
 
 userSchema.pre('save', async function (next) {
     
@@ -52,3 +64,10 @@ userSchema.statics.login = async function(email, password) {
 
 const User = mongoose.model('user', userSchema);
 module.exports = User;
+
+
+
+
+
+
+

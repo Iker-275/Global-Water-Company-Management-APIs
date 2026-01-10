@@ -33,7 +33,7 @@ app.post("/",function(req,res){
     
 })
 
-app.use("/",appRoutes);
+app.use("/base",appRoutes);
 
 
 app.use((err, req, res, next) => {
