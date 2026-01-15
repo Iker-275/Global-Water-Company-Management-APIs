@@ -15,25 +15,26 @@ app.use(express.static("public"));
 app.use(cookieParser())
 app.use(checkUser);
 
-app.set("view engine","ejs");
+ app.set("view engine","ejs");
 const PORT = process.env.PORT || 5000;
 
 
  
 app.get("/login",checkUser,function(req,res){
-res.render("login");
+    
+//res.render("login");
 })
 
 
 app.get("/",requireAuth,(req,res)=>{
-    res.render("home");
+   // res.render("home");
 })
 
 app.post("/",function(req,res){
     
 })
 
-app.use("/base",appRoutes);
+app.use("/water",appRoutes);
 
 
 app.use((err, req, res, next) => {
