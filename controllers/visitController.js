@@ -1,15 +1,13 @@
 const Visit = require("../models/visitModel");
 const Customer = require("../models/customerModel");
+const User = require("../models/userModel");
+
 const {apiResponse} = require("../utils/apiResponse");
 const { createNotification } = require("../services/notificationService");
 
-/**
- * CREATE VISIT (Meter Reading)
- * - Adds reading to customer
- * - Prevents backward readings
- */
+
 const createVisit = async (req, res) => {
-  const { customerId, currentRead, visitDate } = req.body;
+  const { customerId, currentReading, visitDate ,collectorId} = req.body;
 
   const customer = await Customer.findOne({
     _id: customerId,
@@ -23,12 +21,45 @@ const createVisit = async (req, res) => {
       message: "Customer not found"
     });
 
-  const lastReading =
-    customer.readings?.length > 0
-      ? customer.readings[customer.readings.length - 1].reading
-      : customer.initialMeterReading || 0;
+     let collector = null;
+    
+      if (collectorId) {
+        collector = await User.findOne({
+          _id: collectorId,
+          deletedAt: null
+        });
+    
+        if (!collector)
+          return apiResponse({
+            res,
+            success: false,
+            message: "Collector user not found"
+          });
+    
+        if (collector.active !== true)
+          return apiResponse({
+            res,
+            success: false,
+            message: "Collector user is not active"
+          });
+    
+        if (!["user", "employee", "admin"].includes(collector.role))
+          return apiResponse({
+            res,
+            success: false,
+            message: "User is not authorized as a collector"
+          });
+      }
 
-  if (currentRead < lastReading)
+      
+  const lastReading =
+    customer.meter.readings?.length > 0
+      ? customer.meter.readings[customer.meter.readings.length - 1].reading
+      : customer.meter.initialReading || 0;
+
+      
+
+  if (currentReading < lastReading)
     return apiResponse({
       res,
       success: false,
@@ -38,19 +69,24 @@ const createVisit = async (req, res) => {
   const visit = await Visit.create({
     customerId,
     visitDate: visitDate || new Date(),
-    previousRead: lastReading,
-    currentRead,
+     lastReading,
+    currentReading,
     zoneId: customer.zoneId,
     villageId: customer.villageId,
-    collectorId: req.user?._id // if auth middleware exists
+    collectorId: collectorId 
   });
+  
 
   // Append reading to customer
-  customer.readings.push({
-    reading: currentRead,
-    date: visit.visitDate,
+  customer.meter.readings.push({
+    reading: currentReading,
+    //lastReadAt: visit.visitDate,
+    date: visit.dateOfVisit,
     visitId: visit._id
   });
+  customer.meter.lastReading = lastReading;
+  customer.meter.currentReading = currentReading;
+  customer.meter.lastReadAt = visit.dateOfVisit;
 
   customer.visitIds.push(visit._id);
   await customer.save();
@@ -72,9 +108,7 @@ const createVisit = async (req, res) => {
   });
 };
 
-/**
- * GET VISITS (FILTERS + PAGINATION)
- */
+
  const getVisits = async (req, res) => {
   const {
     page = 1,
@@ -114,7 +148,7 @@ const createVisit = async (req, res) => {
   return apiResponse({
     res,
     data: visits,
-    meta: {
+    pagination: {
       page: Number(page),
       limit: Number(limit),
       total,
@@ -124,9 +158,7 @@ const createVisit = async (req, res) => {
   });
 };
 
-/**
- * GET VISIT BY ID
- */
+
  const getVisitById = async (req, res) => {
   const visit = await Visit.findOne({
     _id: req.params.id,
@@ -143,10 +175,7 @@ const createVisit = async (req, res) => {
   return apiResponse({ res, data: visit });
 };
 
-/**
- * DELETE VISIT (SOFT)
- * - Also removes reading from customer
- */
+
  const deleteVisit = async (req, res) => {
   const visit = await Visit.findOne({
     _id: req.params.id,

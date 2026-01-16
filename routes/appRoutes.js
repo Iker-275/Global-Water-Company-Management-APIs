@@ -7,8 +7,12 @@ const { createRate, getCurrentRate, getAllRates, getSingleRate, deleteRate, upda
 const { createZone, getZones, updateZone, deleteZone } = require("../controllers/zoneController");
 const{ createNotificationController,getNotifications,getNotificationById,markAsRead,deleteNotification} = require("../controllers/notificationController")  ;
  const { createVillage, getVillages, getVillageById, updateVillage, deleteVillage } = require("../controllers/villageController");  
-const { createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer } = require("../controllers/customerController");
+const { createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer ,uploadCustomersFromExcel} = require("../controllers/customerController");
 const { createVisit, getVisits, getVisitById, deleteVisit } = require("../controllers/visitController");  
+
+
+const multer = require("multer");
+const upload = multer({ storage: multer.memoryStorage() });
 const router = Router();
 
 router.get("/signup",signUp_get);
@@ -79,6 +83,7 @@ router.get("/customer", getCustomers);
 router.get("/customer/:id", getCustomerById);
 router.put("/customer/:id", updateCustomer);
 router.delete("/customer/:id", deleteCustomer);
+router.post("/customer/bulk-upload",upload.single("file"),uploadCustomersFromExcel);
 
 //visits
 router.post("/visit", createVisit);

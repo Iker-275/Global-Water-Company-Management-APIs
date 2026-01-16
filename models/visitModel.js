@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const visitSchema = new mongoose.Schema(
   {
-    visitCode: { type: String, required: true, unique: true },
+   // _id: { type: String, required: true, unique: true },
 
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -13,8 +13,15 @@ const visitSchema = new mongoose.Schema(
 
     collectorId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 
-    dateOfVisit: { type: Date, required: true },
-    meterReading: { type: Number, required: true },
+    dateOfVisit: { type: Date, required: true, default: Date.now },
+    visitedAt: {
+      type: Date,
+      required: true,
+      default: Date.now // auto-captures date + time
+    },
+    
+    lastReading: { type: Number, required: true },
+    currentReading: { type: Number, required: true },
 
     notes: String,
     deletedAt: { type: Date, default: null }

@@ -210,7 +210,7 @@ const User = require("../models/userModel");
 const { generateCustomerCode } = require("../utils/generateCustomerCode");
 const {apiResponse} = require("../utils/apiResponse");
 const { createNotification } = require("../services/notificationService");
-
+const XLSX = require("xlsx");
 /**
  * CREATE CUSTOMER
  */
@@ -311,6 +311,81 @@ const createCustomer = async (req, res) => {
 /**
  * GET ALL CUSTOMERS (FILTERS + PAGINATION)
  */
+// const getCustomers = async (req, res) => {
+//   const {
+//     page = 1,
+//     limit = 10,
+//     zoneId,
+//     villageId,
+//     customerCode,
+//     name,
+//     phone,
+//     collectorId,
+//     status,
+//     hasBalance,
+//     minBalance,
+//     maxBalance,
+//     meterNo,
+//     dateFrom,
+//     dateTo
+//   } = req.query;
+
+//   const filter = { deletedAt: null };
+
+//   if (zoneId) filter.zoneId = zoneId;
+//   if (villageId) filter.villageId = villageId;
+//   if (customerCode) filter.customerCode = customerCode;
+//   if (status) filter.status = status;
+//   if (collectorId) filter.collectorId = collectorId;
+//   if (meterNo) filter.meterNo = meterNo;
+
+//   if (phone)
+//     filter.phone = { $regex: phone, $options: "i" };
+
+//   if (name)
+//     filter.name = { $regex: name, $options: "i" };
+
+//   if (hasBalance === "true")
+//     filter.unpaid = { $gt: 0 };
+
+//   if (hasBalance === "false")
+//     filter.unpaid = 0;
+
+//   if (minBalance || maxBalance) {
+//     filter.unpaid = {};
+//     if (minBalance) filter.unpaid.$gte = Number(minBalance);
+//     if (maxBalance) filter.unpaid.$lte = Number(maxBalance);
+//   }
+
+//   if (dateFrom || dateTo) {
+//     filter.createdAt = {};
+//     if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
+//     if (dateTo) filter.createdAt.$lte = new Date(dateTo);
+//   }
+
+//   const skip = (page - 1) * limit;
+
+//   const [customers, total] = await Promise.all([
+//     Customer.find(filter)
+//       .skip(skip)
+//       .limit(Number(limit))
+//       .sort({ createdAt: -1 }),
+//     Customer.countDocuments(filter)
+//   ]);
+
+//   return apiResponse({
+//     res,
+//     data: customers,
+//     pagination: {
+//       page: Number(page),
+//       limit: Number(limit),
+//       total,
+//       totalPages: Math.ceil(total / limit),
+//       hasNextPage: skip + customers.length < total
+//     }
+//   });
+// };
+
 const getCustomers = async (req, res) => {
   const {
     page = 1,
@@ -325,7 +400,6 @@ const getCustomers = async (req, res) => {
     hasBalance,
     minBalance,
     maxBalance,
-    meterNo,
     dateFrom,
     dateTo
   } = req.query;
@@ -337,7 +411,6 @@ const getCustomers = async (req, res) => {
   if (customerCode) filter.customerCode = customerCode;
   if (status) filter.status = status;
   if (collectorId) filter.collectorId = collectorId;
-  if (meterNo) filter.meterNo = meterNo;
 
   if (phone)
     filter.phone = { $regex: phone, $options: "i" };
@@ -345,16 +418,17 @@ const getCustomers = async (req, res) => {
   if (name)
     filter.name = { $regex: name, $options: "i" };
 
+  // Balance filters (note: balances.unpaid is nested)
   if (hasBalance === "true")
-    filter.unpaid = { $gt: 0 };
+    filter["balances.unpaid"] = { $gt: 0 };
 
   if (hasBalance === "false")
-    filter.unpaid = 0;
+    filter["balances.unpaid"] = 0;
 
   if (minBalance || maxBalance) {
-    filter.unpaid = {};
-    if (minBalance) filter.unpaid.$gte = Number(minBalance);
-    if (maxBalance) filter.unpaid.$lte = Number(maxBalance);
+    filter["balances.unpaid"] = {};
+    if (minBalance) filter["balances.unpaid"].$gte = Number(minBalance);
+    if (maxBalance) filter["balances.unpaid"].$lte = Number(maxBalance);
   }
 
   if (dateFrom || dateTo) {
@@ -365,11 +439,28 @@ const getCustomers = async (req, res) => {
 
   const skip = (page - 1) * limit;
 
+  const projection = `
+    customerCode
+    houseNo
+    name
+    phone
+    purpose
+    businessName
+    zoneCode
+    villageName
+    collectorName
+    status
+    createdAt
+    updatedAt
+  `;
+
   const [customers, total] = await Promise.all([
     Customer.find(filter)
+      .select(projection)   // ✅ Hides meter & balances
       .skip(skip)
       .limit(Number(limit))
-      .sort({ createdAt: -1 }),
+      .sort({ createdAt: -1 })
+      .lean(),              // 🚀 Faster JSON response
     Customer.countDocuments(filter)
   ]);
 
@@ -496,4 +587,127 @@ const deleteCustomer = async (req, res) => {
 };
 
 
-module.exports = {  createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer };
+
+const uploadCustomersFromExcel = async (req, res) => {
+  if (!req.file)
+    return apiResponse({ res, success: false, message: "No file uploaded" });
+
+  const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+  const sheet = workbook.Sheets["customers"];
+
+  if (!sheet)
+    return apiResponse({
+      res,
+      success: false,
+      message: "Excel sheet must be named 'customers'"
+    });
+
+  const rows = XLSX.utils.sheet_to_json(sheet);
+
+  const inserted = [];
+  const failed = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+
+    try {
+      /* ---------- ZONE & VILLAGE ---------- */
+      const zone = await Zone.findOne({ _id: row.zoneId, deletedAt: null });
+      const village = await Village.findOne({ _id: row.villageId, deletedAt: null });
+
+      if (!zone || !village)
+        throw new Error("Invalid zone or village");
+
+      /* ---------- DUPLICATE CHECK ---------- */
+      const existing = await Customer.findOne({
+        phone: row.phone,
+        name: { $regex: `^${row.name}$`, $options: "i" },
+        deletedAt: null
+      });
+
+      if (existing)
+        throw new Error("Duplicate customer");
+
+      /* ---------- COLLECTOR ---------- */
+      let collector = null;
+      if (row.collectorId) {
+        collector = await User.findOne({
+          _id: row.collectorId,
+          deletedAt: null,
+          active: true
+        });
+
+        if (!collector)
+          throw new Error("Invalid or inactive collector");
+      }
+
+      /* ---------- BALANCES ---------- */
+      const previousBalance = Number(row.previousBalance || 0);
+      const expectedTotal = Number(row.expectedTotal || 0);
+      const totalPaid = Number(row.totalPaid || 0);
+
+      const unpaid = previousBalance + expectedTotal - totalPaid;
+
+      /* ---------- CUSTOMER CODE ---------- */
+      const customerCode = await generateCustomerCode(zone.code, village.code);
+
+      /* ---------- CREATE CUSTOMER ---------- */
+      const customer = await Customer.create({
+        houseNo: row.houseNo,
+        phone: row.phone,
+        name: row.name,
+        purpose: row.purpose,
+        businessName: row.businessName || "",
+        customerCode,
+        zoneId: zone._id,
+        zoneCode: zone.code,
+        villageId: village._id,
+        villageName: village.name,
+        collectorId: collector ? collector._id : null,
+        collectorName: collector ? collector.email : null,
+        meter: {
+          meterNo: row.meterNo,
+          initialReading: row.initialReading || 0,
+          currentReading: row.currentReading || 0,
+          readings: []
+        },
+        balances: {
+          previousBalance,
+          expectedTotal,
+          totalPaid,
+          unpaid
+        },
+        status: row.status || "active"
+      });
+
+      inserted.push(customer._id);
+    } catch (error) {
+      failed.push({
+        row: i + 2, // Excel row number
+        phone: row.phone,
+        reason: error.message
+      });
+    }
+  }
+
+  /* ---------- SINGLE NOTIFICATION ---------- */
+  await createNotification({
+    type: "CUSTOMER_BULK_UPLOAD",
+    message: `${inserted.length} customers imported, ${failed.length} failed`,
+    targetRoles: ["admin", "system"]
+  });
+
+  return apiResponse({
+    res,
+    message: "Bulk upload completed",
+    data: {
+      insertedCount: inserted.length,
+      failedCount: failed.length,
+      failed
+    }
+  });
+};
+
+
+
+module.exports = {  createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer ,uploadCustomersFromExcel};

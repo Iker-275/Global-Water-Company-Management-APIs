@@ -9,6 +9,8 @@ const notificationSchema = new mongoose.Schema(
         "CUSTOMER_UPDATED",
         "CUSTOMER_DELETED",
         "VISIT_LOGGED",
+        "VISIT_DELETED",
+        "VISIT_CREATED",
         "BILL_GENERATED",
         "PAYMENT_RECEIVED",
         "DISCONNECTION",
@@ -17,7 +19,8 @@ const notificationSchema = new mongoose.Schema(
         "ZONE_CREATED",
         "VILLAGE_CREATED",
         "VILLAGE_DELETED",
-        "VILLAGE_UPDATED"
+        "VILLAGE_UPDATED",
+        "CUSTOMER_BULK_UPLOAD"
 
       ],
       required: true
