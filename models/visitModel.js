@@ -28,6 +28,10 @@ const visitSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+visitSchema.index({ visitedAt: -1 });
+visitSchema.index({ customerId: 1, visitedAt: -1 });
+visitSchema.index({ collectorId: 1, visitedAt: -1 });
+
 
 
 const Visit= mongoose.model('Visit', visitSchema);

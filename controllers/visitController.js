@@ -7,7 +7,7 @@ const { createNotification } = require("../services/notificationService");
 
 
 const createVisit = async (req, res) => {
-  const { customerId, currentReading, visitDate ,collectorId} = req.body;
+  const { customerId, currentReading, visitDate ,collectorId,notes} = req.body;
 
   const customer = await Customer.findOne({
     _id: customerId,
@@ -73,7 +73,8 @@ const createVisit = async (req, res) => {
     currentReading,
     zoneId: customer.zoneId,
     villageId: customer.villageId,
-    collectorId: collectorId 
+    collectorId: collectorId ,
+    notes
   });
   
 
@@ -128,19 +129,20 @@ const createVisit = async (req, res) => {
   if (villageId) filter.villageId = villageId;
   if (collectorId) filter.collectorId = collectorId;
 
+ 
   if (dateFrom || dateTo) {
-    filter.visitDate = {};
-    if (dateFrom) filter.visitDate.$gte = new Date(dateFrom);
-    if (dateTo) filter.visitDate.$lte = new Date(dateTo);
+    filter.visitedAt = {};
+    if (dateFrom) filter.visitedAt.$gte = new Date(dateFrom);
+    if (dateTo) filter.visitedAt.$lte = new Date(dateTo);
   }
 
   const skip = (page - 1) * limit;
 
   const [visits, total] = await Promise.all([
     Visit.find(filter)
+    .sort({ visitedAt: -1 })
       .skip(skip)
       .limit(Number(limit))
-      .sort({ visitDate: -1 })
       .populate("customerId", "name customerCode"),
     Visit.countDocuments(filter)
   ]);
