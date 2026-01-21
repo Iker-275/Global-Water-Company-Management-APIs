@@ -1,145 +1,151 @@
 const mongoose = require("mongoose");
+const User = require("./userModel");
 
-// const BillingSchema = new mongoose.Schema({
-//   customerId: {
-//     type: mongoose.Schema.Types.ObjectId,
-//     ref: "Customer",
-//     required: true,
-//     index: true
-//   },
+console.log("models");
 
-//   // Billing period
-//   billingPeriod: {
-//     type: String, // "YYYY-MM"
-//     required: true,
-//     index: true
-//   },
+console.log(mongoose.modelNames());
 
-//   // Readings snapshot
-//   previousReading: {
-//     type: Number,
-//     required: true
-//   },
+const BillingSchema = new mongoose.Schema({
+  customerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Customer",
+    required: true,
+    index: true
+  },
 
-//   currentReading: {
-//     type: Number,
-//     required: true
-//   },
+  // Billing period
+  billingPeriod: {
+    type: String, // "YYYY-MM"
+    required: true,
+    index: true
+  },
 
-//   unitsConsumed: {
-//     type: Number,
-//     required: true
-//   },
+  // Readings snapshot
+  previousReading: {
+    type: Number,
+    required: true
+  },
 
-//   ratePerUnit: {
-//     type: Number,
-//     required: true
-//   },
+  currentReading: {
+    type: Number,
+    required: true
+  },
 
-//   amount: {
-//     type: Number,
-//     required: true
-//   },
+  unitsConsumed: {
+    type: Number,
+    required: true
+  },
+
+  ratePerUnit: {
+    type: Number,
+    required: true
+  },
+
+  amount: {
+    type: Number,
+    required: true
+  },
 
 
 
-//   // Optional extras
-//   fixedCharges: {
-//     type: Number,
-//     default: 0
-//   },
+  // Optional extras
+  fixedCharges: {
+    type: Number,
+    default: 0
+  },
 
-//   penalties: {
-//     type: Number,
-//     default: 0
-//   },
+  penalties: {
+    type: Number,
+    default: 0
+  },
 
-//   totalAmount: {
-//     type: Number,
-//     required: true
-//   },
+  totalAmount: {
+    type: Number,
+    required: true
+  },
 
-//   // Billing source
-//   billingType: {
-//     type: String,
-//     enum: ["MANUAL", "ZONE", "VILLAGE", "SYSTEM","GLOBAL","REVERSAL","ADJUSTMENT"],
-//     required: true
-//   },
+  // Billing source
+  billingType: {
+    type: String,
+    enum: ["MANUAL", "ZONE", "VILLAGE", "SYSTEM","GLOBAL","REVERSAL","ADJUSTMENT"],
+    required: true
+  },
 
-//   billingRunId: {
-//     type: mongoose.Schema.Types.ObjectId,
-//     ref: "BillingRun"
-//   },
+  billingRunId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "BillingRun"
+  },
 
-//   // References to visits used
-//   visitId: {
-//     type: mongoose.Schema.Types.ObjectId,
-//     ref: "Visit",
-//     required: true
-//   },
+  // References to visits used
+  visitId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Visit",
+    required: true
+  },
 
-//   billedBy: {
-//     type: mongoose.Schema.Types.ObjectId,
-//     ref: "User"
-//   },
+  billedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "user"
+  },
 
-//   billedAt: {
-//     type: Date,
-//     default: Date.now
-//   },
+  billedAt: {
+    type: Date,
+    default: Date.now
+  },
 
-//   status: {
-//     type: String,
-//     enum: ["UNPAID", "PARTIAL", "PAID", "REVERSED"],
-//     default: "UNPAID"
-//   },
+  // Financial lifecycle  status
+ status: {
+      type: String,
+      enum: ["ACTIVE", "PAID", "PARTIAL", "REVERSED", "ADJUSTED"],
+      default: "ACTIVE",
+      index: true
+    },
+  reversedAt: Date,
+  reversedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "user"
+  },
 
-//   reversedAt: Date,
-//   reversedBy: {
-//     type: mongoose.Schema.Types.ObjectId,
-//     ref: "User"
-//   },
-
-//   reversalReason: String,
+  reversalReason: String,
 //   status: {
 //   type: String,
 //   enum: ["ACTIVE", "REVERSED", "ADJUSTED"],
 //   default: "ACTIVE"
 // },
 
-// reversalOf: {
-//   type: mongoose.Schema.Types.ObjectId,
-//   ref: "Billing",
-//   default: null
-// },
+reversalOf: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Billing",
+  default: null
+},
 
-// adjustmentOf: {
-//   type: mongoose.Schema.Types.ObjectId,
-//   ref: "Billing",
-//   default: null
-// },
+adjustmentOf: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Billing",
+  default: null
+},
 
-// reason: String,
+reason: String,
 
-// approvedBy: {
-//   type: mongoose.Schema.Types.ObjectId,
-//   ref: "User"
-// },
+approvedBy: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "user"
+},
 
-// approvedAt: Date
-
-
-// }, { timestamps: true });
+approvedAt: Date
 
 
-// 🚫 Prevent double billing
+}, { timestamps: true });
+
+
+// // Prevent double billing
 // BillingSchema.index(
 //   { customerId: 1, billingPeriod: 1 },
 //   { unique: true }
 // );
 
 
-const BillingSchema = new mongoose.Schema(
+const BillingSchema2 = new mongoose.Schema(
   {
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -261,17 +267,22 @@ const BillingSchema = new mongoose.Schema(
 
 
 
+
+
+
 BillingSchema.index(
   { customerId: 1, billingPeriod: 1 },
   {
     unique: true,
     partialFilterExpression: {
+      status: "ACTIVE",
       billingType: {
         $in: ["MANUAL", "ZONE", "VILLAGE", "GLOBAL", "AUTO_VISIT"]
       }
     }
   }
 );
+
 
 BillingSchema.index({ zoneId: 1 });
 BillingSchema.index({ createdAt: -1 });

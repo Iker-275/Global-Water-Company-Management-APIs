@@ -9,7 +9,11 @@ const Rate = require("../models/ratesModel");
 const UnbilledCustomer = require("../models/unbilledModel");
 const BillingRun = require("../models/billingRun");
 const Village = require("../models/villageModel");
+require("../models/userModel");
+
 const { getPeriodRange } = require("../utils/dateRange");
+
+
 
 
 const billCustomersPerZone = async (req, res) => {
@@ -62,7 +66,8 @@ const billCustomersPerZone = async (req, res) => {
     try {
       const existingBill = await Billing.findOne({
         customerId: customer._id,
-        billingPeriod
+        billingPeriod,
+        status: "ACTIVE"
       });
       if (existingBill) continue;
 
@@ -200,7 +205,8 @@ const billSingleCustomer = async (req, res) => {
   // Prevent double billing
   const existingBill = await Billing.findOne({
     customerId,
-    billingPeriod
+    billingPeriod,
+    status: "ACTIVE"
   });
 
   if (existingBill && !override)
@@ -359,7 +365,8 @@ const billCustomersPerVillage = async (req, res) => {
     try {
       const existingBill = await Billing.findOne({
         customerId: customer._id,
-        billingPeriod
+        billingPeriod,
+        status: "ACTIVE"
       });
       if (existingBill) continue;
 
@@ -505,7 +512,8 @@ const billAllCustomers = async (req, res) => {
       // 3️⃣ Prevent double billing
       const existingBill = await Billing.findOne({
         customerId: customer._id,
-        billingPeriod
+        billingPeriod,
+        status: "ACTIVE"
       });
       if (existingBill) continue;
 
@@ -728,6 +736,7 @@ const reverseBilling = async (req, res) => {
    // fixedCharges: -bill.fixedCharges,
     totalAmount: -bill.totalAmount,
     billingType: "REVERSAL",
+    status: "REVERSED",
     reversalOf: bill._id,
     reason,
     approvedBy: userId,
@@ -737,7 +746,7 @@ const reverseBilling = async (req, res) => {
   // Update original bill
   await Billing.updateOne(
     { _id: bill._id },
-    { status: "REVERSED" }
+    { status: "REVERSED" ,}
   );
 
   // Restore customer balances
@@ -798,6 +807,12 @@ const adjustBilling = async (req, res) => {
     customerId: bill.customerId,
     billingPeriod: bill.billingPeriod,
     totalAmount: difference,
+    visitId: bill.visitId,
+    currentReading: bill.currentReading,
+    previousReading: bill.previousReading,
+    ratePerUnit: bill.ratePerUnit,
+    amount: difference,
+    unitsConsumed: bill.unitsConsumed,
     billingType: "ADJUSTMENT",
     adjustmentOf: bill._id,
     reason,
@@ -807,7 +822,7 @@ const adjustBilling = async (req, res) => {
 
   await Billing.updateOne(
     { _id: bill._id },
-    { status: "ADJUSTED" }
+    { status: "ACTIVE", billingType: "ADJUSTMENT" }
   );
 
   await Customer.updateOne(
