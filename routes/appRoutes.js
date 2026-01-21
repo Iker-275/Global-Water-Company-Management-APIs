@@ -9,7 +9,7 @@ const{ createNotificationController,getNotifications,getNotificationById,markAsR
  const { createVillage, getVillages, getVillageById, updateVillage, deleteVillage } = require("../controllers/villageController");  
 const { createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer ,uploadCustomersFromExcel} = require("../controllers/customerController");
 const { createVisit, getVisits, getVisitById, deleteVisit } = require("../controllers/visitController");  
-
+const { billSingleCustomer, billAllCustomers, reverseBilling, adjustBilling, getBillings, getSingleBilling,billCustomersPerVillage,billCustomersPerZone } = require("../controllers/billingController");
 
 const multer = require("multer");
 const upload = multer({ storage: multer.memoryStorage() });
@@ -90,6 +90,16 @@ router.post("/visit", createVisit);
 router.get("/visit", getVisits);
 router.get("/visit/:id", getVisitById);
 router.delete("/visit/:id", deleteVisit);
+
+//billing
+router.post("/billing/manual/:customerId",billSingleCustomer);
+router.post("/billing/zone/:zoneId",billCustomersPerZone);
+router.post("/billing/village/:villageId",billCustomersPerVillage);
+router.post("/billing/run",billAllCustomers);
+router.post("/billing/:billingId/reverse",reverseBilling);
+router.post("/billing/:billingId/adjust",adjustBilling);
+router.get("/billing",getBillings);
+router.get("/billing/:billingId",getSingleBilling);
 
 module.exports = router;
 

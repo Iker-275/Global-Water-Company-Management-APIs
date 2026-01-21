@@ -1,34 +1,42 @@
 const mongoose = require("mongoose");
 
-const paymentSchema = new mongoose.Schema(
-  {
-    paymentCode: { type: String, required: true, unique: true },
-
-    customerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Customer",
-      required: true
-    },
-    customerName: String,
-
-    invoiceId: { type: mongoose.Schema.Types.ObjectId, ref: "Bill" },
-
-    amountPaid: { type: Number, required: true },
-    discountGiven: { type: Number, default: 0 },
-
-    totalAccumulated: Number,
-    unpaidAfterPayment: Number,
-
-    paymentMethod: {
-      type: String,
-      enum: ["cash", "mobile", "free"],
-      default: "cash"
-    },
-
-    comment: String,
-    deletedAt: { type: Date, default: null }
+const PaymentSchema = new mongoose.Schema({
+  customerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Customer",
+    required: true
   },
-  { timestamps: true }
-);
 
-export default mongoose.model("Payment", paymentSchema);
+  billingId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Billing"
+  },
+
+  amountPaid: {
+    type: Number,
+    required: true
+  },
+
+  paymentMethod: {
+    type: String,
+    enum: ["ACCOUNT"],
+    required: true
+  },
+
+  reference: String,
+
+  receivedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User"
+  },
+
+  paidAt: {
+    type: Date,
+    default: Date.now
+  }
+
+}, { timestamps: true });
+
+
+const Payment= mongoose.model('Payment', PaymentSchema);
+module.exports = Payment;

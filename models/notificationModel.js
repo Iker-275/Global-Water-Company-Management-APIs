@@ -20,7 +20,11 @@ const notificationSchema = new mongoose.Schema(
         "VILLAGE_CREATED",
         "VILLAGE_DELETED",
         "VILLAGE_UPDATED",
-        "CUSTOMER_BULK_UPLOAD"
+        "CUSTOMER_BULK_UPLOAD",
+        "CUSTOMER_BILLED",
+        "CUSTOMERS_BILLED",
+        "BILL_REVERSED",
+        "BILL_ADJUSTED"
 
       ],
       required: true

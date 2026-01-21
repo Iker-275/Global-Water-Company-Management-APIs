@@ -22,6 +22,8 @@ const visitSchema = new mongoose.Schema(
     
     lastReading: { type: Number, required: true },
     currentReading: { type: Number, required: true },
+isBilled: { type: Boolean, default: false },
+billingId: { type: mongoose.Schema.Types.ObjectId, ref: "Billing" },
 
     notes: String,
     deletedAt: { type: Date, default: null }

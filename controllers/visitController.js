@@ -101,6 +101,7 @@ const createVisit = async (req, res) => {
       entityId: visit._id
     }
   });
+  //await tryAutoBillVisit(visit);
 
   return apiResponse({
     res,

@@ -1,27 +1,287 @@
 const mongoose = require("mongoose");
 
-const rateSchema = new mongoose.Schema(
+// const BillingSchema = new mongoose.Schema({
+//   customerId: {
+//     type: mongoose.Schema.Types.ObjectId,
+//     ref: "Customer",
+//     required: true,
+//     index: true
+//   },
+
+//   // Billing period
+//   billingPeriod: {
+//     type: String, // "YYYY-MM"
+//     required: true,
+//     index: true
+//   },
+
+//   // Readings snapshot
+//   previousReading: {
+//     type: Number,
+//     required: true
+//   },
+
+//   currentReading: {
+//     type: Number,
+//     required: true
+//   },
+
+//   unitsConsumed: {
+//     type: Number,
+//     required: true
+//   },
+
+//   ratePerUnit: {
+//     type: Number,
+//     required: true
+//   },
+
+//   amount: {
+//     type: Number,
+//     required: true
+//   },
+
+
+
+//   // Optional extras
+//   fixedCharges: {
+//     type: Number,
+//     default: 0
+//   },
+
+//   penalties: {
+//     type: Number,
+//     default: 0
+//   },
+
+//   totalAmount: {
+//     type: Number,
+//     required: true
+//   },
+
+//   // Billing source
+//   billingType: {
+//     type: String,
+//     enum: ["MANUAL", "ZONE", "VILLAGE", "SYSTEM","GLOBAL","REVERSAL","ADJUSTMENT"],
+//     required: true
+//   },
+
+//   billingRunId: {
+//     type: mongoose.Schema.Types.ObjectId,
+//     ref: "BillingRun"
+//   },
+
+//   // References to visits used
+//   visitId: {
+//     type: mongoose.Schema.Types.ObjectId,
+//     ref: "Visit",
+//     required: true
+//   },
+
+//   billedBy: {
+//     type: mongoose.Schema.Types.ObjectId,
+//     ref: "User"
+//   },
+
+//   billedAt: {
+//     type: Date,
+//     default: Date.now
+//   },
+
+//   status: {
+//     type: String,
+//     enum: ["UNPAID", "PARTIAL", "PAID", "REVERSED"],
+//     default: "UNPAID"
+//   },
+
+//   reversedAt: Date,
+//   reversedBy: {
+//     type: mongoose.Schema.Types.ObjectId,
+//     ref: "User"
+//   },
+
+//   reversalReason: String,
+//   status: {
+//   type: String,
+//   enum: ["ACTIVE", "REVERSED", "ADJUSTED"],
+//   default: "ACTIVE"
+// },
+
+// reversalOf: {
+//   type: mongoose.Schema.Types.ObjectId,
+//   ref: "Billing",
+//   default: null
+// },
+
+// adjustmentOf: {
+//   type: mongoose.Schema.Types.ObjectId,
+//   ref: "Billing",
+//   default: null
+// },
+
+// reason: String,
+
+// approvedBy: {
+//   type: mongoose.Schema.Types.ObjectId,
+//   ref: "User"
+// },
+
+// approvedAt: Date
+
+
+// }, { timestamps: true });
+
+
+// 🚫 Prevent double billing
+// BillingSchema.index(
+//   { customerId: 1, billingPeriod: 1 },
+//   { unique: true }
+// );
+
+
+const BillingSchema = new mongoose.Schema(
   {
-    pricing: {
-      perUnit: { type: Number, required: true },
-      minimumCharge: { type: Number, required: true }
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Customer",
+      required: true,
+      index: true
     },
 
-    discount: {
-      type: {
-        type: String,
-        enum: ["percentage", "flat"],
-        default: "percentage"
-      },
-      value: { type: Number, default: 0 }
+    billingPeriod: {
+      type: String, // YYYY-MM
+      required: true,
+      index: true
     },
 
-    effectiveFrom: { type: Date, required: true },
-    effectiveTo: { type: Date, default: null },
+    // Meter readings snapshot (only meaningful for NORMAL bills)
+    previousReading: Number,
+    currentReading: Number,
 
-    deletedAt: { type: Date, default: null }
+    unitsConsumed: {
+      type: Number,
+      required: true
+    },
+
+    ratePerUnit: {
+      type: Number,
+      required: true
+    },
+
+    amount: {
+      type: Number,
+      required: true
+    },
+
+    fixedCharges: {
+      type: Number,
+      default: 0
+    },
+
+    penalties: {
+      type: Number,
+      default: 0
+    },
+
+    totalAmount: {
+      type: Number,
+      required: true
+    },
+
+    billingType: {
+      type: String,
+      enum: [
+        "MANUAL",
+        "ZONE",
+        "VILLAGE",
+        "GLOBAL",
+        "AUTO_VISIT",
+        "REVERSAL",
+        "ADJUSTMENT"
+      ],
+      required: true,
+      index: true
+    },
+
+    billingRunId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "BillingRun"
+    },
+
+    visitId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Visit",
+      required: function () {
+        return !["REVERSAL", "ADJUSTMENT"].includes(this.billingType);
+      }
+    },
+
+    billedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    },
+
+    billedAt: {
+      type: Date,
+      default: Date.now
+    },
+
+    // Financial lifecycle status
+    status: {
+      type: String,
+      enum: ["ACTIVE", "PAID", "PARTIAL", "REVERSED", "ADJUSTED"],
+      default: "ACTIVE",
+      index: true
+    },
+
+    reversalOf: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Billing",
+      default: null
+    },
+
+    adjustmentOf: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Billing",
+      default: null
+    },
+
+    reason: String,
+
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    },
+
+    approvedAt: Date
   },
   { timestamps: true }
 );
 
-export default mongoose.model("Rate", rateSchema);
+
+
+
+BillingSchema.index(
+  { customerId: 1, billingPeriod: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      billingType: {
+        $in: ["MANUAL", "ZONE", "VILLAGE", "GLOBAL", "AUTO_VISIT"]
+      }
+    }
+  }
+);
+
+BillingSchema.index({ zoneId: 1 });
+BillingSchema.index({ createdAt: -1 });
+BillingSchema.index({ billingRunId: 1 });
+BillingSchema.index({ reversalOf: 1 });
+
+
+
+
+const Billing= mongoose.model('Billing', BillingSchema);
+module.exports = Billing;
+
+
