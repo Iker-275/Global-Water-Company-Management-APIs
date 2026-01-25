@@ -7,11 +7,12 @@ const { createRate, getCurrentRate, getAllRates, getSingleRate, deleteRate, upda
 const { createZone, getZones, updateZone, deleteZone } = require("../controllers/zoneController");
 const{ createNotificationController,getNotifications,getNotificationById,markAsRead,deleteNotification} = require("../controllers/notificationController")  ;
  const { createVillage, getVillages, getVillageById, updateVillage, deleteVillage } = require("../controllers/villageController");  
-const { createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer ,uploadCustomersFromExcel} = require("../controllers/customerController");
+const { createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer ,uploadCustomersFromExcel, getCustomerStatement} = require("../controllers/customerController");
 const { createVisit, getVisits, getVisitById, deleteVisit } = require("../controllers/visitController");  
 const { billSingleCustomer, billAllCustomers, reverseBilling, adjustBilling, getBillings, getSingleBilling,billCustomersPerVillage,billCustomersPerZone } = require("../controllers/billingController");
 
 const multer = require("multer");
+const { bulkClearPayments, paySingleCustomer, cancelPayment, getPayments, getSinglePayment } = require("../controllers/payment_controller");
 const upload = multer({ storage: multer.memoryStorage() });
 const router = Router();
 
@@ -84,6 +85,7 @@ router.get("/customer/:id", getCustomerById);
 router.put("/customer/:id", updateCustomer);
 router.delete("/customer/:id", deleteCustomer);
 router.post("/customer/bulk-upload",upload.single("file"),uploadCustomersFromExcel);
+router.get("/customer/statement/:id",getCustomerStatement);
 
 //visits
 router.post("/visit", createVisit);
@@ -100,6 +102,15 @@ router.post("/billing/:billingId/reverse",reverseBilling);
 router.post("/billing/:billingId/adjust",adjustBilling);
 router.get("/billing",getBillings);
 router.get("/billing/:billingId",getSingleBilling);
+
+
+
+//payments
+router.post("/payments/:id/clear",paySingleCustomer);
+router.post("/payments/bulk-clear",bulkClearPayments);
+router.post("/payments/:id/cancel",cancelPayment);
+router.get( "/payments/",getPayments);
+router.get("/payments/:id",getSinglePayment);
 
 module.exports = router;
 

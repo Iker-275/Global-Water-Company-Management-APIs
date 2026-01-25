@@ -207,6 +207,12 @@ const Customer = require("../models/customerModel");
 const Village = require("../models/villageModel");
 const Zone = require("../models/zoneModel");
 const User = require("../models/userModel");
+const Billing = require("../models/billingModel")
+const Payment = require("../models/paymentModel")
+const PaymentAllocation = require("../models/allocation")
+const allocatePaymentFIFO = require("../utils/allocationHelper")
+
+
 const { generateCustomerCode } = require("../utils/generateCustomerCode");
 const {apiResponse} = require("../utils/apiResponse");
 const { createNotification } = require("../services/notificationService");
@@ -708,6 +714,130 @@ const uploadCustomersFromExcel = async (req, res) => {
   });
 };
 
+const getCustomerStatement = async (req, res) => {
+  const { id } = req.params;
+  const { fromDate, toDate } = req.query;
+
+  
+
+  const customer = await Customer.findById(id)
+    .select("name meterNumber zone village");
+
+    console.log(customer);
+    
+
+  if (!customer) {
+    return apiResponse({
+      res,
+      success: false,
+      message: "Customer not found"
+    });
+  }
+
+  const billQuery = {
+    "customerId":id,
+    status: { $in: ["ACTIVE", "ADJUSTED", "REVERSED","MANUAL",] }
+  };
 
 
-module.exports = {  createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer ,uploadCustomersFromExcel};
+  const paymentQuery = {
+    id
+  };
+
+  if (fromDate || toDate) {
+    const dateFilter = {};
+    if (fromDate) dateFilter.$gte = new Date(fromDate);
+    if (toDate) dateFilter.$lte = new Date(toDate);
+
+    billQuery.createdAt = dateFilter;
+    paymentQuery.createdAt = dateFilter;
+  }
+
+  const bills = await Billing.find(billQuery).lean();
+  const payments = await Payment.find(paymentQuery).lean();
+
+  /** Normalize to statement entries */
+  const entries = [];
+
+  console.log("bills");
+  console.log(bills)
+  bills.forEach(bill => {
+    
+    if (bill.status === "REVERSED") {
+      entries.push({
+        date: bill.updatedAt,
+        type: "REVERSAL",
+        referenceId: bill._id,
+        description: `Bill reversed (${bill.billingPeriod})`,
+        debit: 0,
+        credit: bill.totalAmount
+      });
+    } else {
+      entries.push({
+        date: bill.createdAt,
+        type: bill.billingType === "ADJUSTMENT" ? "ADJUSTMENT" : "BILL",
+        referenceId: bill._id,
+        description: bill.billingType === "ADJUSTMENT"
+          ? `Adjustment: ${bill.reason}`
+          : `Billing for ${bill.billingPeriod}`,
+        debit: bill.totalAmount,
+        credit: 0
+      });
+    }
+  });
+
+  payments.forEach(payment => {
+    if (payment.status === "CANCELLED") {
+      entries.push({
+        date: payment.cancelledAt,
+        type: "PAYMENT_CANCELLED",
+        referenceId: payment._id,
+        description: `Payment cancelled: ${payment.cancelReason}`,
+        debit: payment.amount,
+        credit: 0
+      });
+    } else {
+      entries.push({
+        date: payment.createdAt,
+        type: "PAYMENT",
+        referenceId: payment._id,
+        description: `Payment received`,
+        debit: 0,
+        credit: payment.amount
+      });
+    }
+  });
+
+  /** Sort chronologically */
+  entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  /** Compute running balance */
+  let runningBalance = 0;
+  const statement = entries.map(entry => {
+    runningBalance += entry.debit;
+    runningBalance -= entry.credit;
+
+    return {
+      ...entry,
+      balance: runningBalance
+    };
+  });
+
+  return apiResponse({
+    res,
+    data: {
+      customer,
+      openingBalance: statement.length ? statement[0].balance - (statement[0].debit - statement[0].credit) : 0,
+      closingBalance: runningBalance,
+      statement
+    }
+  });
+};
+
+
+
+
+
+
+
+module.exports = {  createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer ,uploadCustomersFromExcel,getCustomerStatement};

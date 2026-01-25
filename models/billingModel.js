@@ -1,9 +1,6 @@
 const mongoose = require("mongoose");
-const User = require("./userModel");
 
-console.log("models");
 
-console.log(mongoose.modelNames());
 
 const BillingSchema = new mongoose.Schema({
   customerId: {
