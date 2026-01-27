@@ -29,12 +29,12 @@ const PaymentSchema = new mongoose.Schema(
 
     currency: {
       type: String,
-      default: "KES"
+      default: "USD"
     },
 
     method: {
       type: String,
-      enum: ["CASH", "MPESA", "BANK", "CARD", "ADJUSTMENT"],
+      enum: [ "ACCOUNT"],
       required: true
     },
 

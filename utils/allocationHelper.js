@@ -11,8 +11,11 @@ const allocatePaymentFIFO = async ({
 
   const bills = await Billing.find({
     customerId,
-    status: { $in: ["ACTIVE", "PARTIAL"] }
-  }).sort({ billingPeriod: 1, createdAt: 1 });
+    status: { $in: ["ACTIVE", "PARTIAL", "ADJUSTED"] }
+  })
+  .sort({ billingPeriod: 1, createdAt: 1 });
+  
+
 
   const allocations = [];
 
@@ -24,8 +27,11 @@ const allocatePaymentFIFO = async ({
       { $group: { _id: null, total: { $sum: "$amountCents" } } }
     ]);
 
+    
+
     const paidSoFar = alreadyPaid[0]?.total || 0;
     const billBalance = bill.totalAmount - paidSoFar;
+    
 
     if (billBalance <= 0) continue;
 
@@ -58,4 +64,4 @@ const allocatePaymentFIFO = async ({
   };
 };
 
-module.exports = {allocatePaymentFIFO}
+module.exports = { allocatePaymentFIFO }

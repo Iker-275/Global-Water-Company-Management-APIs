@@ -35,7 +35,7 @@ const customerSchema = new mongoose.Schema(
           date: Date
         }
       ],
-      lastReading: { type: Number ,required: true },
+      // lastReading: { type: Number ,required: true },
 
       currentReading: { type: Number, required: true },
       lastReadAt: Date

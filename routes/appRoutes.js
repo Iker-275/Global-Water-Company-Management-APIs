@@ -106,10 +106,10 @@ router.get("/billing/:billingId",getSingleBilling);
 
 
 //payments
-router.post("/payments/:id/clear",paySingleCustomer);
+router.post("/payments/clear",paySingleCustomer);
 router.post("/payments/bulk-clear",bulkClearPayments);
 router.post("/payments/:id/cancel",cancelPayment);
-router.get( "/payments/",getPayments);
+router.get( "/payments",getPayments);
 router.get("/payments/:id",getSinglePayment);
 
 module.exports = router;

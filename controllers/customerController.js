@@ -723,7 +723,7 @@ const getCustomerStatement = async (req, res) => {
   const customer = await Customer.findById(id)
     .select("name meterNumber zone village");
 
-    console.log(customer);
+    
     
 
   if (!customer) {
@@ -741,7 +741,7 @@ const getCustomerStatement = async (req, res) => {
 
 
   const paymentQuery = {
-    id
+    "customerId":id,
   };
 
   if (fromDate || toDate) {
@@ -756,11 +756,15 @@ const getCustomerStatement = async (req, res) => {
   const bills = await Billing.find(billQuery).lean();
   const payments = await Payment.find(paymentQuery).lean();
 
+  console.log("pays");
+  console.log(payments);
+  
+  
+
   /** Normalize to statement entries */
   const entries = [];
 
-  console.log("bills");
-  console.log(bills)
+  
   bills.forEach(bill => {
     
     if (bill.status === "REVERSED") {

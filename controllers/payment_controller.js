@@ -3,8 +3,8 @@ const Billing = require("../models/billingModel")
 
 const Payment = require("../models/paymentModel")
 const PaymentAllocation = require("../models/allocation")
-const allocatePaymentFIFO = require("../utils/allocationHelper")
-const apiResponse = require("../utils/apiResponse")
+const { allocatePaymentFIFO }= require("../utils/allocationHelper")
+const { apiResponse } = require("../utils/apiResponse")
 
 
 const paySingleCustomer = async (req, res) => {
@@ -14,7 +14,7 @@ const paySingleCustomer = async (req, res) => {
     return apiResponse({
       res,
       success: false,
-      message: "customerId, amountCents, method required"
+      message: "customerId, amount, method required"
     });
 
   const customer = await Customer.findById(customerId);
