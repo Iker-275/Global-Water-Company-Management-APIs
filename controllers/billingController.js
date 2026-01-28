@@ -67,7 +67,8 @@ const billCustomersPerZone = async (req, res) => {
       const existingBill = await Billing.findOne({
         customerId: customer._id,
         billingPeriod,
-        status: "ACTIVE"
+        status: { $ne: "REVERSED" }
+        //status: "ACTIVE"
       });
       if (existingBill) continue;
 
@@ -206,7 +207,8 @@ const billSingleCustomer = async (req, res) => {
   const existingBill = await Billing.findOne({
     customerId,
     billingPeriod,
-    status: "ACTIVE"
+    status: { $ne: "REVERSED" }
+    // status: "ACTIVE"
   });
 
   if (existingBill && !override)
@@ -366,7 +368,8 @@ const billCustomersPerVillage = async (req, res) => {
       const existingBill = await Billing.findOne({
         customerId: customer._id,
         billingPeriod,
-        status: "ACTIVE"
+        status: { $ne: "REVERSED" }
+      //  status: "ACTIVE"
       });
       if (existingBill) continue;
 
@@ -513,7 +516,8 @@ const billAllCustomers = async (req, res) => {
       const existingBill = await Billing.findOne({
         customerId: customer._id,
         billingPeriod,
-        status: "ACTIVE"
+        status: { $ne: "REVERSED" }
+        //status: "ACTIVE"
       });
       if (existingBill) continue;
 
@@ -647,7 +651,8 @@ const tryAutoBillVisit = async (visit) => {
 
   const existingBill = await Billing.findOne({
     customerId: customer._id,
-    billingPeriod
+    billingPeriod,
+    status: { $ne: "REVERSED" }
   });
 
   if (existingBill) return;

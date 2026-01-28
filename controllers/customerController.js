@@ -736,7 +736,7 @@ const getCustomerStatement = async (req, res) => {
 
   const billQuery = {
     "customerId":id,
-    status: { $in: ["ACTIVE", "ADJUSTED", "REVERSED","MANUAL",] }
+    status: { $in: ["ACTIVE", "ADJUSTED","MANUAL","PAID"] }
   };
 
 
@@ -756,8 +756,6 @@ const getCustomerStatement = async (req, res) => {
   const bills = await Billing.find(billQuery).lean();
   const payments = await Payment.find(paymentQuery).lean();
 
-  console.log("pays");
-  console.log(payments);
   
   
 
@@ -797,7 +795,7 @@ const getCustomerStatement = async (req, res) => {
         type: "PAYMENT_CANCELLED",
         referenceId: payment._id,
         description: `Payment cancelled: ${payment.cancelReason}`,
-        debit: payment.amount,
+        debit: payment.amountCents,
         credit: 0
       });
     } else {
@@ -807,7 +805,7 @@ const getCustomerStatement = async (req, res) => {
         referenceId: payment._id,
         description: `Payment received`,
         debit: 0,
-        credit: payment.amount
+        credit: payment.amountCents
       });
     }
   });
@@ -821,11 +819,16 @@ const getCustomerStatement = async (req, res) => {
     runningBalance += entry.debit;
     runningBalance -= entry.credit;
 
+    
+
     return {
       ...entry,
       balance: runningBalance
     };
   });
+
+  const openingBalance = 0;
+const closingBalance = runningBalance;
 
   return apiResponse({
     res,

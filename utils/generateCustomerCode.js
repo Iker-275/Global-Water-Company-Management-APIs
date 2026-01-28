@@ -5,7 +5,7 @@ const Counter = require('../models/counterModel');
 
   const counter = await Counter.findOneAndUpdate(
     { key },
-    { $inc: { seq: 1 } },
+    { $inc: { seq: 25 } },
     { new: true, upsert: true }
   );
 
