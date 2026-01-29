@@ -976,5 +976,114 @@ const getSingleBilling = async (req, res) => {
 };
 
 
+const getUnbilledCustomers = async (req, res) => {
+  const {
+    page = 1,
+    limit = 10,
+    billingPeriod,
+    zoneId,
+    villageId,
+    customerId,
+    reason,
+    billingRunId,
+    dateFrom,
+    dateTo
+  } = req.query;
 
-module.exports = { billCustomersPerZone, billCustomersPerVillage, billAllCustomers, billSingleCustomer, reverseBilling, adjustBilling, tryAutoBillVisit, getBillings, getSingleBilling };
+  if (!billingPeriod) {
+    return apiResponse({
+      res,
+      success: false,
+      message: "billingPeriod is required"
+    });
+  }
+
+  const filter = {
+    billingPeriod,
+    deletedAt: null
+  };
+
+  if (customerId) filter.customerId = customerId;
+  if (reason) filter.reason = reason;
+  if (billingRunId) filter.billingRunId = billingRunId;
+
+  if (dateFrom || dateTo) {
+    filter.createdAt = {};
+    if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
+    if (dateTo) filter.createdAt.$lte = new Date(dateTo);
+  }
+
+  const skip = (page - 1) * limit;
+
+  const query = UnbilledCustomer.find(filter)
+    .populate({
+      path: "customerId",
+      select: "name customerCode phone zoneCode villageName houseNo",
+      populate: [
+        { path: "zoneId",
+          select: "name"
+        },
+        {
+          path: "villageId",
+          select: "name"
+        }
+      ]
+    })
+    .populate("billingRunId", "runType billingPeriod createdAt")
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(Number(limit))
+    .lean();
+
+  const [data, total] = await Promise.all([
+    query,
+    UnbilledCustomer.countDocuments(filter)
+  ]);
+
+  // Optional zone / village filtering AFTER population
+  const filteredData = data.filter((u) => {
+    if (zoneId && u.customerId?.zoneId?._id.toString() !== zoneId) {
+      return false;
+    }
+    if (
+      villageId &&
+      u.customerId?.villageId?._id.toString() !== villageId
+    ) {
+      return false;
+    }
+    return true;
+  });
+
+  return apiResponse({
+    res,
+    data: filteredData,
+    pagination: {
+      page: Number(page),
+      limit: Number(limit),
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNextPage: skip + filteredData.length < total
+    }
+  });
+};
+
+
+
+
+module.exports = { billCustomersPerZone, billCustomersPerVillage, billAllCustomers, billSingleCustomer, 
+  reverseBilling, adjustBilling, tryAutoBillVisit, getBillings, getSingleBilling ,getUnbilledCustomers};
+
+
+//   const period = await BillingPeriod.findOne({
+//   period: billingPeriod,
+//   status: "OPEN",
+//   deletedAt: null
+// });
+
+// if (!period) {
+//   return apiResponse({
+//     res,
+//     success: false,
+//     message: "Billing period is closed or locked"
+//   });
+// }

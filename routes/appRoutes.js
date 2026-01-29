@@ -9,7 +9,8 @@ const{ createNotificationController,getNotifications,getNotificationById,markAsR
  const { createVillage, getVillages, getVillageById, updateVillage, deleteVillage } = require("../controllers/villageController");  
 const { createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer ,uploadCustomersFromExcel, getCustomerStatement} = require("../controllers/customerController");
 const { createVisit, getVisits, getVisitById, deleteVisit } = require("../controllers/visitController");  
-const { billSingleCustomer, billAllCustomers, reverseBilling, adjustBilling, getBillings, getSingleBilling,billCustomersPerVillage,billCustomersPerZone } = require("../controllers/billingController");
+const { billSingleCustomer, billAllCustomers, reverseBilling, adjustBilling, getBillings, getSingleBilling,billCustomersPerVillage,billCustomersPerZone, getUnbilledCustomers } = require("../controllers/billingController");
+const {createBillingPeriod,getBillingPeriods,getBillingPeriod,updateBillingPeriod,closeBillingPeriod,lockBillingPeriod,deleteBillingPeriod} = require("../controllers/billingPeriodController")
 
 const multer = require("multer");
 const { bulkClearPayments, paySingleCustomer, cancelPayment, getPayments, getSinglePayment } = require("../controllers/payment_controller");
@@ -101,7 +102,19 @@ router.post("/billing/run",billAllCustomers);
 router.post("/billing/:billingId/reverse",reverseBilling);
 router.post("/billing/:billingId/adjust",adjustBilling);
 router.get("/billing",getBillings);
+router.get("/billing/unbilled",getUnbilledCustomers);
 router.get("/billing/:billingId",getSingleBilling);
+
+//billingperiod
+router.post("/billing-periods", createBillingPeriod);
+router.get("/billing-periods", getBillingPeriods);
+router.get("/billing-periods/:id", getBillingPeriod);
+router.patch("/billing-periods/:id", updateBillingPeriod);
+
+router.post("/billing-periods/:id/close", closeBillingPeriod);
+router.post("/billing-periods/:id/lock", lockBillingPeriod);
+
+router.delete("/billing-periods/:id", deleteBillingPeriod);
 
 
 

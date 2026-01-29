@@ -5,6 +5,8 @@ const Payment = require("../models/paymentModel")
 const PaymentAllocation = require("../models/allocation")
 const { allocatePaymentFIFO }= require("../utils/allocationHelper")
 const { apiResponse } = require("../utils/apiResponse")
+const { createNotification } = require('../services/notificationService');
+
 
 
 const paySingleCustomer = async (req, res) => {
@@ -46,6 +48,13 @@ const paySingleCustomer = async (req, res) => {
       }
     }
   );
+
+  
+     await createNotification({
+        type: "CUSTOMER_PAYMENT",
+        message: `Customer ${customer.name} payment made`,
+        targetRoles: ["admin","system"]
+      });
 
   return apiResponse({
     res,
@@ -100,6 +109,12 @@ const bulkClearPayments = async (req, res) => {
 
     results.push(payment._id);
   }
+
+   await createNotification({
+        type: "CUSTOMER_BULK_PAYMENT",
+        message: `Customer Bulk payment made`,
+        targetRoles: ["admin","system"]
+      });
 
   return apiResponse({
     res,
@@ -159,6 +174,12 @@ const cancelPayment = async (req, res) => {
     { _id: payment._id },
     { status: "CANCELLED" }
   );
+
+   await createNotification({
+        type: "CUSTOMER_PAYMENT_CANCELLED",
+        message: `Customer ${customerId} payment cancelled`,
+        targetRoles: ["admin","system"]
+      });
 
   return apiResponse({
     res,

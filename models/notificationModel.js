@@ -24,7 +24,16 @@ const notificationSchema = new mongoose.Schema(
         "CUSTOMER_BILLED",
         "CUSTOMERS_BILLED",
         "BILL_REVERSED",
-        "BILL_ADJUSTED"
+        "BILL_ADJUSTED",
+        "CUSTOMER_PAYMENT_CANCELLED",
+        "CUSTOMER_BULK_PAYMENT",
+        "CUSTOMER_PAYMENT",
+        "BILLING_PERIOD_DELETED",
+        "BILLING_PERIOD_LOCKED",
+        "BILLING_PERIOD_CLOSED",
+        "BILLING_PERIOD_UPDATED",
+        "BILLING_PERIOD_CREATED"
+
 
       ],
       required: true
