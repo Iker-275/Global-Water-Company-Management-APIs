@@ -48,8 +48,12 @@ const notificationSchema = new mongoose.Schema(
       entityType: String,
       entityId: mongoose.Schema.Types.ObjectId
     },
+    readBy: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "user"
+    }],
 
-    isRead: { type: Boolean, default: false }
+   // isRead: { type: Boolean, default: false }
   },
   { timestamps: true }
 );

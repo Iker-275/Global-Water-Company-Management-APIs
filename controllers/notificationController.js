@@ -1,11 +1,29 @@
 
 const Notification = require( "../models/notificationModel");
 const  { apiResponse } = require ("../utils/apiResponse.js");
+const User = require("../models/userModel");
 
-
- const createNotificationController = async (req, res) => {
+const createNotificationController = async (req, res) => {
   try {
-    const notification = await Notification.create(req.body);
+    const { targetRoles, targetUsers = [] } = req.body;
+
+    let resolvedUsers = targetUsers;
+
+    if (targetRoles?.length) {
+      const users = await User.find({
+        role: { $in: targetRoles },
+        deletedAt: null
+      }).select("_id");
+
+      resolvedUsers = [
+        ...new Set([...resolvedUsers, ...users.map(u => u._id.toString())])
+      ];
+    }
+
+    const notification = await Notification.create({
+      ...req.body,
+      targetUsers: resolvedUsers
+    });
 
     return apiResponse({
       res,
@@ -23,23 +41,113 @@ const  { apiResponse } = require ("../utils/apiResponse.js");
 };
 
 
- const getNotifications = async (req, res) => {
+const getNotifications2 = async (req, res) => {
   try {
-    const { role, userId, unread } = req.query;
+    const {
+      userId,
+      unread,
+      page = 1,
+      limit = 10
+    } = req.query;
 
-    const query = { deletedAt: null };
+    if (!userId) {
+      return apiResponse({
+        res,
+        success: false,
+        message: "userId is required"
+      });
+    }
 
-    if (role) query.targetRoles = role;
-    if (userId) query.targetUsers = userId;
-    if (unread === "true") query.isRead = false;
+    const filter = {
+      deletedAt: null,
+      targetUsers: userId
+    };
 
-    const notifications = await Notification.find(query)
-      .sort({ createdAt: -1 });
+    if (unread === "true") {
+      filter.readBy = { $ne: userId };
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [notifications, total] = await Promise.all([
+      Notification.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .lean(),
+      Notification.countDocuments(filter)
+    ]);
 
     return apiResponse({
       res,
-      message: "Notifications fetched successfully",
-      data: notifications
+      data: notifications,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: skip + notifications.length < total
+      }
+    });
+  } catch (error) {
+    return apiResponse({
+      res,
+      success: false,
+      message: error.message,
+      statusCode: 500
+    });
+  }
+};
+
+const getNotifications = async (req, res) => {
+  try {
+    const {
+      userId,
+      unread,
+      page = 1,
+      limit = 10
+    } = req.query;
+
+    if (!userId) {
+      return apiResponse({
+        res,
+        success: false,
+        message: "userId is required"
+      });
+    }
+
+    const filter = {
+      deletedAt: null,
+      targetUsers: userId
+    };
+
+    if (unread === "true") {
+      filter.readBy = { $ne: userId };
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const [notifications, total] = await Promise.all([
+      Notification.find(filter)
+        .select("-readBy -targetUsers") // 👈 hide fields
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .lean(),
+
+      Notification.countDocuments(filter)
+    ]);
+
+    return apiResponse({
+      res,
+      data: notifications,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: skip + notifications.length < total
+      }
     });
   } catch (error) {
     return apiResponse({
@@ -82,11 +190,27 @@ const  { apiResponse } = require ("../utils/apiResponse.js");
   }
 };
 
- const markAsRead = async (req, res) => {
+const markAsRead = async (req, res) => {
   try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return apiResponse({
+        res,
+        success: false,
+        message: "userId is required"
+      });
+    }
+
     const notification = await Notification.findOneAndUpdate(
-      { _id: req.params.id, deletedAt: null },
-      { isRead: true },
+      {
+        _id: req.params.id,
+        deletedAt: null,
+        targetUsers: userId
+      },
+      {
+        $addToSet: { readBy: userId }
+      },
       { new: true }
     );
 
@@ -94,7 +218,7 @@ const  { apiResponse } = require ("../utils/apiResponse.js");
       return apiResponse({
         res,
         success: false,
-        message: "Notification not found",
+        message: "Notification not found or access denied",
         statusCode: 404
       });
     }
@@ -112,6 +236,24 @@ const  { apiResponse } = require ("../utils/apiResponse.js");
       statusCode: 500
     });
   }
+};
+
+const markAllAsRead = async (req, res) => {
+  const { userId } = req.body;
+
+  await Notification.updateMany(
+    {
+      targetUsers: userId,
+      readBy: { $ne: userId },
+      deletedAt: null
+    },
+    { $addToSet: { readBy: userId } }
+  );
+
+  return apiResponse({
+    res,
+    message: "All notifications marked as read"
+  });
 };
 
 
@@ -147,4 +289,4 @@ const  { apiResponse } = require ("../utils/apiResponse.js");
 };
 
 
-module.exports = {createNotificationController,createNotificationController,getNotifications,getNotificationById,markAsRead,deleteNotification};
+module.exports = {createNotificationController,createNotificationController,getNotifications,getNotificationById,markAsRead,markAllAsRead,deleteNotification};
