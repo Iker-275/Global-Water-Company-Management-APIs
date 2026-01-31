@@ -96,13 +96,13 @@ const { createNotification } = require('../services/notificationService');
 
  const updateZone = async (req, res) => {
   try {
-    if (req.body.code) {
-      return apiResponse({
-        res,
-        success: false,
-        message: "Zone code cannot be updated"
-      });
-    }
+    // if (req.body.code) {
+    //   return apiResponse({
+    //     res,
+    //     success: false,
+    //     message: "Zone code cannot be updated"
+    //   });
+    // }
 
     const zone = await Zone.findOneAndUpdate(
       { _id: req.params.id, deletedAt: null },
@@ -191,6 +191,7 @@ const { createNotification } = require('../services/notificationService');
     });
   }
 };
+
 
 
 module.exports = {getZones,createZone,updateZone,deleteZone};

@@ -32,7 +32,9 @@ const notificationSchema = new mongoose.Schema(
         "BILLING_PERIOD_LOCKED",
         "BILLING_PERIOD_CLOSED",
         "BILLING_PERIOD_UPDATED",
-        "BILLING_PERIOD_CREATED"
+        "BILLING_PERIOD_CREATED",
+        "ZONE_UPDATED",
+        "ZONE_DELETED"
 
 
       ],

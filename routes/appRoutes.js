@@ -5,7 +5,7 @@ const {createRole,getAllRoles,getRoleById,updateRole,deleteRole} = require("../c
 const {createExpense,updateExpense,deleteExpense,getExpense,getExpenses} = require("../controllers/expenseController");
 const { createRate, getCurrentRate, getAllRates, getSingleRate, deleteRate, updateRate } = require("../controllers/rateController");
 const { createZone, getZones, updateZone, deleteZone } = require("../controllers/zoneController");
-const{ createNotificationController,getNotifications,getNotificationById,markAsRead,deleteNotification, markAllAsRead} = require("../controllers/notificationController")  ;
+const{ createNotificationController,getNotifications,getNotificationById,markAsRead,deleteNotification, markAllAsRead, getUnreadNotificationCount} = require("../controllers/notificationController")  ;
  const { createVillage, getVillages, getVillageById, updateVillage, deleteVillage } = require("../controllers/villageController");  
 const { createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer ,uploadCustomersFromExcel, getCustomerStatement} = require("../controllers/customerController");
 const { createVisit, getVisits, getVisitById, deleteVisit } = require("../controllers/visitController");  
@@ -50,10 +50,10 @@ router.get("/expense/:id", getExpense);
 //notifications
 router.post("/notification", createNotificationController);
 router.get("/notification", getNotifications);
-router.get("/notification/:id", getNotificationById);
 router.patch("/notification/all/read", markAllAsRead);
+router.get("/notification/unread", getUnreadNotificationCount);
 router.patch("/notification/:id/read", markAsRead);
-
+router.get("/notification/:id", getNotificationById);
 router.delete("/notification/:id", deleteNotification);
 
 
@@ -68,7 +68,7 @@ router.put("/rate/:id", updateRate);
 
 
 //zones
-
+router.get("/zone/:id", getZones);
 router.post("/zone", createZone);
 router.get("/zone", getZones);
 router.put("/zone/:id", updateZone);

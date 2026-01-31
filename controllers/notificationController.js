@@ -98,6 +98,37 @@ const getNotifications2 = async (req, res) => {
     });
   }
 };
+const getUnreadNotificationCount = async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return apiResponse({
+        res,
+        success: false,
+        message: "userId is required"
+      });
+    }
+
+    const unreadCount = await Notification.countDocuments({
+      deletedAt: null,
+      targetUsers: userId,
+      readBy: { $ne: userId }
+    });
+
+    return apiResponse({
+      res,
+      data: { unreadCount }
+    });
+  } catch (error) {
+    return apiResponse({
+      res,
+      success: false,
+      message: error.message,
+      statusCode: 500
+    });
+  }
+};
 
 const getNotifications = async (req, res) => {
   try {
@@ -289,4 +320,4 @@ const markAllAsRead = async (req, res) => {
 };
 
 
-module.exports = {createNotificationController,createNotificationController,getNotifications,getNotificationById,markAsRead,markAllAsRead,deleteNotification};
+module.exports = {createNotificationController,createNotificationController,getNotifications,getNotificationById,markAsRead,markAllAsRead,deleteNotification,getUnreadNotificationCount};

@@ -1,34 +1,80 @@
 const Village = require("../models/villageModel");
 const Zone = require("../models/zoneModel");
+const Customer = require('../models/customerModel');
+
 const {apiResponse} = require("../utils/apiResponse");
 const { createNotification } = require("../services/notificationService");
 
 /**
  * CREATE
  */
- const createVillage = async (req, res) => {
-  const { zoneId } = req.body;
 
-  const zone = await Zone.findOne({ _id: zoneId, deletedAt: null });
-  if (!zone)
-    return apiResponse({ res, success: false, message: "Invalid zone" });
+const createVillage = async (req, res) => {
+  try {
+    const { zoneId, code, name } = req.body;
 
-  const village = await Village.create({
-    ...req.body,
-    zoneCode: zone.code
-  });
+    // 1️⃣ Validate zone
+    const zone = await Zone.findOne({ _id: zoneId, deletedAt: null });
+    if (!zone) {
+      return apiResponse({
+        res,
+        success: false,
+        message: "Invalid zone"
+      });
+    }
 
-  await createNotification({
-    type: "VILLAGE_CREATED",
-    message: `Village ${village.name} created`,
-    targetRoles: ["admin", "system"]
-  });
+    // 2️⃣ Check duplicates (same zone)
+    const duplicate = await Village.findOne({
+      zoneId,
+      deletedAt: null,
+      $or: [
+        { code },
+        { name: new RegExp(`^${name}$`, "i") } // case-insensitive
+      ]
+    });
 
-  return apiResponse({
-    res,
-    message: "Village created successfully",
-    data: village
-  });
+    if (duplicate) {
+      let message = "Village already exists";
+
+      if (duplicate.code === code) {
+        message = `Village code "${code}" already exists in this zone`;
+      } else if (duplicate.name.toLowerCase() === name.toLowerCase()) {
+        message = `Village name "${name}" already exists in this zone`;
+      }
+
+      return apiResponse({
+        res,
+        success: false,
+        message
+      });
+    }
+
+    // 3️⃣ Create village
+    const village = await Village.create({
+      ...req.body,
+      zoneCode: zone.code
+    });
+
+    // 4️⃣ Notify
+    await createNotification({
+      type: "VILLAGE_CREATED",
+      message: `Village ${village.name} created`,
+      targetRoles: ["admin", "system"]
+    });
+
+    return apiResponse({
+      res,
+      message: "Village created successfully",
+      data: village
+    });
+  } catch (error) {
+    return apiResponse({
+      res,
+      success: false,
+      message: error.message,
+      statusCode: 500
+    });
+  }
 };
 
 /**
@@ -89,55 +135,166 @@ const { createNotification } = require("../services/notificationService");
 /**
  * UPDATE
  */
- const updateVillage = async (req, res) => {
-  if (req.body.zoneId) {
-    const zone = await Zone.findOne({
-      _id: req.body.zoneId,
+const updateVillage = async (req, res) => {
+  try {
+    const { zoneId, code, name } = req.body;
+    const villageId = req.params.id;
+
+    // 1️⃣ Fetch existing village
+    const existingVillage = await Village.findOne({
+      _id: villageId,
       deletedAt: null
     });
-    if (!zone)
-      return apiResponse({ res, success: false, message: "Invalid zone" });
 
-    req.body.zoneCode = zone.code;
+    if (!existingVillage) {
+      return apiResponse({
+        res,
+        success: false,
+        message: "Village not found"
+      });
+    }
+
+    // 2️⃣ If zoneId is changing → validate zone
+    let finalZoneId = existingVillage.zoneId;
+    let finalZoneCode = existingVillage.zoneCode;
+
+    if (zoneId && zoneId.toString() !== existingVillage.zoneId.toString()) {
+      const zone = await Zone.findOne({ _id: zoneId, deletedAt: null });
+      if (!zone) {
+        return apiResponse({
+          res,
+          success: false,
+          message: "Invalid zone"
+        });
+      }
+
+      finalZoneId = zoneId;
+      finalZoneCode = zone.code;
+      req.body.zoneCode = zone.code;
+    }
+
+    // 3️⃣ Duplicate check (exclude current village)
+    if (code || name || zoneId) {
+      const duplicate = await Village.findOne({
+        _id: { $ne: villageId },
+        zoneId: finalZoneId,
+        deletedAt: null,
+        $or: [
+          ...(code ? [{ code }] : []),
+          ...(name
+            ? [{ name: new RegExp(`^${name}$`, "i") }]
+            : [])
+        ]
+      });
+
+      if (duplicate) {
+        let message = "Village already exists";
+
+        if (code && duplicate.code === code) {
+          message = `Village code "${code}" already exists in this zone`;
+        } else if (
+          name &&
+          duplicate.name.toLowerCase() === name.toLowerCase()
+        ) {
+          message = `Village name "${name}" already exists in this zone`;
+        }
+
+        return apiResponse({
+          res,
+          success: false,
+          message
+        });
+      }
+    }
+
+    // 4️⃣ Update
+    const village = await Village.findOneAndUpdate(
+      { _id: villageId, deletedAt: null },
+      {
+        ...req.body,
+        zoneId: finalZoneId,
+        zoneCode: finalZoneCode
+      },
+      { new: true }
+    );
+
+    // 5️⃣ Notify
+    await createNotification({
+      type: "VILLAGE_UPDATED",
+      message: `Village ${village.name} updated`,
+      targetRoles: ["admin"]
+    });
+
+    return apiResponse({
+      res,
+      message: "Village updated",
+      data: village
+    });
+  } catch (error) {
+    return apiResponse({
+      res,
+      success: false,
+      message: error.message,
+      statusCode: 500
+    });
   }
-
-  const village = await Village.findOneAndUpdate(
-    { _id: req.params.id, deletedAt: null },
-    req.body,
-    { new: true }
-  );
-
-  if (!village)
-    return apiResponse({ res, success: false, message: "Village not found" });
-
-  await createNotification({
-    type: "VILLAGE_UPDATED",
-    message: `Village ${village.name} updated`,
-    targetRoles: ["admin"]
-  });
-
-  return apiResponse({ res, message: "Village updated", data: village });
 };
 
 /**
  * DELETE (soft)
  */
- const deleteVillage = async (req, res) => {
-  const village = await Village.findOneAndUpdate(
-    { _id: req.params.id, deletedAt: null },
-    { deletedAt: new Date() }
-  );
 
-  if (!village)
-    return apiResponse({ res, success: false, message: "Village not found" });
+const deleteVillage = async (req, res) => {
+  try {
+    const villageId = req.params.id;
 
-  await createNotification({
-    type: "VILLAGE_DELETED",
-    message: `Village ${village.name} deleted`,
-    targetRoles: ["admin"]
-  });
+    // 1️⃣ Check if village has customers
+    const hasCustomers = await Customer.exists({
+      villageId,
+      deletedAt: null
+    });
 
-  return apiResponse({ res, message: "Village deleted" });
+    if (hasCustomers) {
+      return apiResponse({
+        res,
+        success: false,
+        message: "Village cannot be deleted. It has customers."
+      });
+    }
+
+    // 2️⃣ Soft delete village
+    const village = await Village.findOneAndUpdate(
+      { _id: villageId, deletedAt: null },
+      { deletedAt: new Date() }
+    );
+
+    if (!village) {
+      return apiResponse({
+        res,
+        success: false,
+        message: "Village not found"
+      });
+    }
+
+    // 3️⃣ Notify
+    await createNotification({
+      type: "VILLAGE_DELETED",
+      message: `Village ${village.name} deleted`,
+      targetRoles: ["admin"]
+    });
+
+    return apiResponse({
+      res,
+      message: "Village deleted successfully"
+    });
+  } catch (error) {
+    return apiResponse({
+      res,
+      success: false,
+      message: error.message,
+      statusCode: 500
+    });
+  }
 };
 
 

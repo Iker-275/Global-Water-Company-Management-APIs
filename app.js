@@ -8,6 +8,7 @@ const connectDB = require("./db/connect")
 const {requireAuth,checkUser }= require("./middleware/authMiddleware");
 const { runSeed } = require("./seeders/customerSeeder");
 
+
 const app = express();
 
 //app.use(bodyParser.urlencoded({extended: true}));
@@ -35,6 +36,7 @@ app.post("/",function(req,res){
     
 })
 
+// app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.use("/water",appRoutes);
 
 
