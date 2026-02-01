@@ -7,7 +7,7 @@ const { createRate, getCurrentRate, getAllRates, getSingleRate, deleteRate, upda
 const { createZone, getZones, updateZone, deleteZone } = require("../controllers/zoneController");
 const{ createNotificationController,getNotifications,getNotificationById,markAsRead,deleteNotification, markAllAsRead, getUnreadNotificationCount} = require("../controllers/notificationController")  ;
  const { createVillage, getVillages, getVillageById, updateVillage, deleteVillage } = require("../controllers/villageController");  
-const { createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer ,uploadCustomersFromExcel, getCustomerStatement} = require("../controllers/customerController");
+const { createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer ,uploadCustomersFromExcel, getCustomerStatement, toggleCustomerStatus} = require("../controllers/customerController");
 const { createVisit, getVisits, getVisitById, deleteVisit } = require("../controllers/visitController");  
 const { billSingleCustomer, billAllCustomers, reverseBilling, adjustBilling, getBillings, getSingleBilling,billCustomersPerVillage,billCustomersPerZone, getUnbilledCustomers } = require("../controllers/billingController");
 const {createBillingPeriod,getBillingPeriods,getBillingPeriod,updateBillingPeriod,closeBillingPeriod,lockBillingPeriod,deleteBillingPeriod} = require("../controllers/billingPeriodController")
@@ -89,6 +89,8 @@ router.put("/customer/:id", updateCustomer);
 router.delete("/customer/:id", deleteCustomer);
 router.post("/customer/bulk-upload",upload.single("file"),uploadCustomersFromExcel);
 router.get("/customer/statement/:id",getCustomerStatement);
+router.patch("/customer/:id/toggle-status", toggleCustomerStatus);
+
 
 //visits
 router.post("/visit", createVisit);

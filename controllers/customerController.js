@@ -223,18 +223,31 @@ const XLSX = require("xlsx");
 const createCustomer = async (req, res) => {
   const { zoneId, villageId ,collectorId,phone,name} = req.body;
 
-  const existingCustomer = await Customer.findOne({
-    phone: phone,
-    name: { $regex: `^${name}$`, $options: "i" },
-    deletedAt: null
-  });
+  // const existingCustomer = await Customer.findOne({
+  //   phone: phone,
+  //   name: { $regex: `^${name}$`, $options: "i" },
+  //   deletedAt: null
+  // });
 
-  if (existingCustomer)
-    return apiResponse({
-      res,
-      success: false,
-      message: "Customer with same name and phone already exists"
-    });
+  // if (existingCustomer)
+  //   return apiResponse({
+  //     res,
+  //     success: false,
+  //     message: "Customer with same name and phone already exists"
+  //   });
+  const existingCustomer = await Customer.findOne({
+  phone,
+  deletedAt: null
+});
+
+if (existingCustomer) {
+  return apiResponse({
+    res,
+    success: false,
+    message: "Customer with this phone number already exists"
+  });
+}
+
 
   const zone = await Zone.findOne({ _id: zoneId, deletedAt: null });
   const village = await Village.findOne({ _id: villageId, deletedAt: null });
@@ -507,7 +520,7 @@ const getCustomers = async (req, res) => {
  */
 const updateCustomer = async (req, res) => {
 
-  const { zoneId, villageId ,zoneCode,phone,name,villageName} = req.body;
+  const { zoneId, villageId ,phone,name} = req.body;
 
     if (phone || name) {
     const duplicate = await Customer.findOne({
@@ -842,9 +855,63 @@ const closingBalance = runningBalance;
 };
 
 
+/**
+ * TOGGLE CUSTOMER STATUS (ACTIVE ↔ DISCONNECTED)
+ */
+const toggleCustomerStatus = async (req, res) => {
+  const customer = await Customer.findOne({
+    _id: req.params.id,
+    deletedAt: null
+  });
+
+  if (!customer) {
+    return apiResponse({
+      res,
+      success: false,
+      message: "Customer not found"
+    });
+  }
+
+  // Optional safety: block disconnect if unpaid balance exists
+  if (
+    customer.status === "active" &&
+    customer.balances?.unpaid > 0
+  ) {
+    return apiResponse({
+      res,
+      success: false,
+      message: "Customer cannot be disconnected with outstanding balance"
+    });
+  }
+
+  const newStatus =
+    customer.status === "active" ? "disconnected" : "active";
+
+  customer.status = newStatus;
+  await customer.save();
+
+  await createNotification({
+    type: "CUSTOMER_STATUS_CHANGED",
+    message: `Customer ${customer.name} is now ${newStatus.toLowerCase()}`,
+    targetRoles: ["admin"],
+    relatedEntity: {
+      entityType: "customer",
+      entityId: customer._id
+    }
+  });
+
+  return apiResponse({
+    res,
+    message: `Customer status updated to ${newStatus}`,
+    data: {
+      id: customer._id,
+      status: customer.status
+    }
+  });
+};
 
 
 
 
 
-module.exports = {  createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer ,uploadCustomersFromExcel,getCustomerStatement};
+module.exports = {  createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer ,uploadCustomersFromExcel,getCustomerStatement,toggleCustomerStatus};

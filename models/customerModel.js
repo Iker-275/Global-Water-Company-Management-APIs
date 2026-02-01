@@ -11,7 +11,7 @@ const customerSchema = new mongoose.Schema(
 
     purpose: {
       type: String,
-      enum: ["domestic", "business"],
+      enum: ["domestic", "business",],
       default: "domestic"
     },
     businessName: String,
