@@ -801,27 +801,58 @@ const getCustomerStatement = async (req, res) => {
     }
   });
 
-  payments.forEach(payment => {
-    if (payment.status === "CANCELLED") {
-      entries.push({
-        date: payment.cancelledAt,
-        type: "PAYMENT_CANCELLED",
-        referenceId: payment._id,
-        description: `Payment cancelled: ${payment.cancelReason}`,
-        debit: payment.amountCents,
-        credit: 0
-      });
-    } else {
-      entries.push({
-        date: payment.createdAt,
-        type: "PAYMENT",
-        referenceId: payment._id,
-        description: `Payment received`,
-        debit: 0,
-        credit: payment.amountCents
-      });
-    }
-  });
+  // payments.forEach(payment => {
+  //   if (payment.status === "CANCELLED") {
+  //     entries.push({
+  //       date: payment.cancelledAt,
+  //       type: "PAYMENT_CANCELLED",
+  //       referenceId: payment._id,
+  //       description: `Payment cancelled: ${payment.cancelReason}`,
+  //       debit: payment.amountCents,
+  //       credit: 0
+  //     });
+  //   } else {
+  //     entries.push({
+  //       date: payment.createdAt,
+  //       type: "PAYMENT",
+  //       referenceId: payment._id,
+  //       description: `Payment received`,
+  //       debit: 0,
+  //       credit: payment.amountCents
+  //     });
+  //   }
+  // });
+payments.forEach(payment => {
+  // 1️⃣ Normal payment (even if later cancelled)
+  if (payment.method !== "ADJUSTMENT") {
+    entries.push({
+      date: payment.createdAt,
+      type: payment.status === "CANCELLED"
+        ? "PAYMENT (CANCELLED)"
+        : "PAYMENT",
+      referenceId: payment._id,
+      description:
+        payment.status === "CANCELLED"
+          ? "Payment received (later cancelled)"
+          : "Payment received",
+      debit: 0,
+      credit: payment.amountCents
+    });
+  }
+
+  // 2️⃣ Adjustment entry (reversal)
+  if (payment.method === "ADJUSTMENT") {
+    entries.push({
+      date: payment.createdAt,
+      type: "ADJUSTMENT",
+      referenceId: payment._id,
+      description: `Payment reversal: ${payment.reason || "Adjustment"}`,
+      debit: Math.abs(payment.amountCents),
+      credit: 0
+    });
+  }
+});
+
 
   /** Sort chronologically */
   entries.sort((a, b) => new Date(a.date) - new Date(b.date));

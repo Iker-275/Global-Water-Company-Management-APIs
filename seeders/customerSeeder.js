@@ -132,8 +132,8 @@ const names = [
 ];
 
 async function seedCustomers() {
-  const zoneId = new mongoose.Types.ObjectId("6968afda4fd39f54d463078e");
-  const villageId = new mongoose.Types.ObjectId("6968b3be61ad8946c6162861");
+  const zoneId = new mongoose.Types.ObjectId("6968af7e74781bf617ad02a2");
+  const villageId = new mongoose.Types.ObjectId("698046e60225792aba56fb53");
 
   const existingCount = await Customer.countDocuments({
     zoneId,
@@ -149,29 +149,29 @@ async function seedCustomers() {
 
   for (let i = 0; i < 30; i++) {
     // ✅ unique phone per customer
-    const phone = `3587${String(1000 + i)}`;
+    const phone = `54362${String(1000 + i)}`;
 
     // ✅ unique customer code PER customer
     const customerCode = await generateCustomerCode(
-      "vilHALWADAAG",
-      "z002"
+      "z001",
+      "HAMBALAYO001"
     );
 
     customers.push({
       houseNo: `AX${String(i + 1).padStart(3, "0")}`,
       phone,
-      zoneCode: "z002",
+      zoneCode: "z001",
       zoneId,
       name: names[i],
       purpose: "domestic",
       businessName: "",
       villageId,
-      villageName: "HORSEED",
+      villageName: "HAMBALAYO",
       collectorId: new mongoose.Types.ObjectId("6968a3ddcc13bd29d4b09c24"),
       collectorName: "admin",
       customerCode,
       meter: {
-        meterNo: `MTR-z002-${i + 1}`, // ✅ fixed
+        meterNo: `MTR-z001-${i + 1}`, // ✅ fixed
         initialReading: 0,
         currentReading: 0,
         readings: []

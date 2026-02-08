@@ -21,11 +21,28 @@ const PaymentSchema = new mongoose.Schema(
       index: true
     },
 
-    amountCents: {
-      type: Number,
-      required: true,
-      min: 1
+    // amountCents: {
+    //   type: Number,
+    //   required: true,
+    //   min: 1
+    // },
+amountCents: {
+  type: Number,
+  required: true,
+  validate: {
+    validator: function (value) {
+      if (this.method === "ADJUSTMENT") {
+        return value < 0; // must be negative
+      }
+      return value > 0; // normal payments must be positive
     },
+    message: function () {
+      return this.method === "ADJUSTMENT"
+        ? "Adjustment payments must have a negative amount"
+        : "Payment amount must be greater than zero";
+    }
+  }
+},
 
     currency: {
       type: String,
@@ -34,7 +51,7 @@ const PaymentSchema = new mongoose.Schema(
 
     method: {
       type: String,
-      enum: [ "ACCOUNT"],
+      enum: [ "ACCOUNT","ADJUSTMENT"],
       required: true
     },
 

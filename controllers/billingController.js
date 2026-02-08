@@ -504,7 +504,7 @@ const billAllCustomers = async (req, res) => {
     deletedAt: null,
     status: "active"
   });
-  console.log("Customers" + customers);
+  
 
   let billed = 0;
   let unbilled = 0;
@@ -603,8 +603,8 @@ const billAllCustomers = async (req, res) => {
 
       billed++;
     } catch (err) {
-      console.log("Error" + err);
-      console.error("Global billing error:", err);
+      // console.log("Error" + err);
+      // console.error("Global billing error:", err);
       failed++;
     }
   }

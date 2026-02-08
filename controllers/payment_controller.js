@@ -124,6 +124,69 @@ const bulkClearPayments = async (req, res) => {
 };
 
 
+// const cancelPayment = async (req, res) => {
+//   const { id } = req.params;
+//   const { reason, userId } = req.body;
+
+//   const payment = await Payment.findOne({
+//     _id: id,
+//     status: "ACTIVE"
+//   });
+
+//   if (!payment)
+//     return apiResponse({
+//       res,
+//       success: false,
+//       message: "Active payment not found"
+//     });
+
+//   const allocations = await PaymentAllocation.find({
+//     paymentId: payment._id
+//   });
+
+//   for (const alloc of allocations) {
+//     await Billing.updateOne(
+//       { _id: alloc.billingId },
+//       { status: "ACTIVE" }
+//     );
+//   }
+
+//   await Customer.updateOne(
+//     { _id: payment.customerId },
+//     {
+//       $inc: {
+//         "balances.unpaid": payment.amountCents,
+//         "balances.totalPaid": -payment.amountCents
+//       }
+//     }
+//   );
+
+//   await Payment.create({
+//     customerId: payment.customerId,
+//     amountCents: -payment.amountCents,
+//     method: "ADJUSTMENT",
+//     reversalOf: payment._id,
+//     reason,
+//     createdBy: userId
+//   });
+
+//   await Payment.updateOne(
+//     { _id: payment._id },
+//     { status: "CANCELLED" }
+//   );
+
+//    await createNotification({
+//         type: "CUSTOMER_PAYMENT_CANCELLED",
+//         message: `Customer ${payment.customerId} payment cancelled`,
+//         targetRoles: ["admin","system"]
+//       });
+
+//   return apiResponse({
+//     res,
+//     message: "Payment cancelled successfully"
+//   });
+// };
+
 const cancelPayment = async (req, res) => {
   const { id } = req.params;
   const { reason, userId } = req.body;
@@ -140,29 +203,17 @@ const cancelPayment = async (req, res) => {
       message: "Active payment not found"
     });
 
-  const allocations = await PaymentAllocation.find({
-    paymentId: payment._id
-  });
-
-  for (const alloc of allocations) {
-    await Billing.updateOne(
-      { _id: alloc.billingId },
-      { status: "ACTIVE" }
-    );
-  }
-
-  await Customer.updateOne(
-    { _id: payment.customerId },
-    {
-      $inc: {
-        "balances.unpaid": payment.amountCents,
-        "balances.totalPaid": -payment.amountCents
-      }
-    }
+  // Reverse allocations
+  await PaymentAllocation.updateMany(
+    { paymentId: payment._id },
+    { status: "REVERSED" }
   );
 
+  // Create adjustment (ledger-based reversal)
   await Payment.create({
     customerId: payment.customerId,
+    zoneId: payment.zoneId,
+    villageId: payment.villageId,
     amountCents: -payment.amountCents,
     method: "ADJUSTMENT",
     reversalOf: payment._id,
@@ -170,16 +221,17 @@ const cancelPayment = async (req, res) => {
     createdBy: userId
   });
 
+  // Mark original payment cancelled
   await Payment.updateOne(
     { _id: payment._id },
     { status: "CANCELLED" }
   );
 
-   await createNotification({
-        type: "CUSTOMER_PAYMENT_CANCELLED",
-        message: `Customer ${customerId} payment cancelled`,
-        targetRoles: ["admin","system"]
-      });
+  await createNotification({
+    type: "CUSTOMER_PAYMENT_CANCELLED",
+    message: `Payment cancelled for customer ${payment.customerId}`,
+    targetRoles: ["admin", "system"]
+  });
 
   return apiResponse({
     res,
@@ -188,41 +240,70 @@ const cancelPayment = async (req, res) => {
 };
 
 
+
 const getPayments = async (req, res) => {
-  const {
-    customerId,
-    zoneId,
-    villageId,
-    method,
-    from,
-    to,
-    status
-  } = req.query;
+  try {
+    const {
+      customerId,
+      zoneId,
+      villageId,
+      method,
+      from,
+      to,
+      status,
+      page = 1,
+      limit = 10
+    } = req.query;
 
-  const filter = {};
+    const filter = { deletedAt: null };
 
-  if (customerId) filter.customerId = customerId;
-  if (zoneId) filter.zoneId = zoneId;
-  if (villageId) filter.villageId = villageId;
-  if (method) filter.method = method;
-  if (status) filter.status = status;
+    if (customerId) filter.customerId = customerId;
+    if (zoneId) filter.zoneId = zoneId;
+    if (villageId) filter.villageId = villageId;
+    if (method) filter.method = method;
+    if (status) filter.status = status;
 
-  if (from || to) {
-    filter.receivedAt = {};
-    if (from) filter.receivedAt.$gte = new Date(from);
-    if (to) filter.receivedAt.$lte = new Date(to);
+    if (from || to) {
+      filter.receivedAt = {};
+      if (from) filter.receivedAt.$gte = new Date(from);
+      if (to) filter.receivedAt.$lte = new Date(to);
+    }
+
+    const pageNumber = Number(page);
+    const pageLimit = Number(limit);
+    const skip = (pageNumber - 1) * pageLimit;
+
+    const [payments, total] = await Promise.all([
+      Payment.find(filter)
+        .populate("customerId", "name customerCode")
+        .sort({ receivedAt: -1 })
+        .skip(skip)
+        .limit(pageLimit)
+        .lean(),
+      Payment.countDocuments(filter)
+    ]);
+
+    return apiResponse({
+      res,
+      data: payments,
+      pagination: {
+        page: pageNumber,
+        limit: pageLimit,
+        total,
+        totalPages: Math.ceil(total / pageLimit),
+        hasNextPage: skip + payments.length < total,
+        hasPrevPage: pageNumber > 1
+      }
+    });
+  } catch (error) {
+    return apiResponse({
+      res,
+      success: false,
+      message: error.message,
+      statusCode: 500
+    });
   }
-
-  const payments = await Payment.find(filter)
-    .populate("customerId", "name accountNumber")
-    .sort({ receivedAt: -1 });
-
-  return apiResponse({
-    res,
-    data: payments
-  });
 };
-
 
 const getSinglePayment = async (req, res) => {
   const { id } = req.params;

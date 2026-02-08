@@ -22,7 +22,7 @@ const handleErrors = (err) => {
         errors.email = "Email is not registered.Try again.";
         return errors;
     }
-    x
+    
 
     //duplicate error code
     if (err.code === 11000) {
