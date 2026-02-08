@@ -19,25 +19,26 @@ const userSchema = new mongoose.Schema({
     role:{
         type:String,
         required:true,
-        default:"User"
+        default:"user"
     },
     active:{
         type:Boolean,
-        default:false
+        default:true
     }
 
 },
 { timestamps: true }
 )
 
-userSchema.pre('save', async function (next) {
-    
 
-    const salt = await bcrypt.genSalt();
+userSchema.pre('save', async function (next) {
+    if (!this.isModified('password')) return next;
+
+    const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
-   // console.log('user about to be created',this);
     next;
-})
+});
+
 
 
 
@@ -46,8 +47,9 @@ userSchema.statics.login = async function(email, password) {
 
     if (user) {
         //bcrypt checks for hashing automatically
-        const auth = await bcrypt.compare(password, user.password)
-
+    
+        const auth = await bcrypt.compare(password, user.password,);
+        
         if (auth) {
             return user;
         }
