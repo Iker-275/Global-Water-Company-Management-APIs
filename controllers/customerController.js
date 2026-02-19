@@ -471,6 +471,10 @@ const getCustomers = async (req, res) => {
     status
     createdAt
     updatedAt
+    meter.meterNo
+  meter.currentReading
+  meter.lastReadAt
+  balances.unpaid
   `;
 
   const [customers, total] = await Promise.all([
