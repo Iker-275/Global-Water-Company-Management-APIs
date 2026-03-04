@@ -18,6 +18,7 @@ const customerSchema = new mongoose.Schema(
 
     zoneId: { type: mongoose.Schema.Types.ObjectId, ref: "Zone", required: true },
     zoneCode: String,
+    zoneName: String,
 
     villageId: { type: mongoose.Schema.Types.ObjectId, ref: "Village", required: true },
     villageName: String,

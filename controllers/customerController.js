@@ -221,7 +221,7 @@ const XLSX = require("xlsx");
  * CREATE CUSTOMER
  */
 const createCustomer = async (req, res) => {
-  const { zoneId, villageId ,collectorId,phone,name} = req.body;
+  const { zoneId, villageId ,collectorId,phone,name,previousBalance} = req.body;
 
   // const existingCustomer = await Customer.findOne({
   //   phone: phone,
@@ -302,12 +302,16 @@ if (existingCustomer) {
     customerCode,
     zoneCode: zone.code,
     zoneId: zone._id,
+    zoneName: zone.name,
     villageName: village.name,
     villageId: village._id,
     status: "active",
-    totalPaid: 0,
-    unpaid: 0,
-    expectedTotal: 0
+    balances: {
+      previousBalance: previousBalance ? Number(previousBalance) : 0,
+      totalPaid: 0,
+      unpaid: previousBalance ? Number(previousBalance) : 0,
+      expectedTotal: 0
+    }
   });
 
   await createNotification({
@@ -466,6 +470,7 @@ const getCustomers = async (req, res) => {
     purpose
     businessName
     zoneCode
+    zoneName
     villageName
     collectorName
     status

@@ -1018,7 +1018,7 @@ const getUnbilledCustomers = async (req, res) => {
   const query = UnbilledCustomer.find(filter)
     .populate({
       path: "customerId",
-      select: "name customerCode phone zoneCode villageName houseNo",
+      select: "name customerCode phone zoneCode villageName houseNo balances",
       populate: [
         { path: "zoneId",
           select: "name"
