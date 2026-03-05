@@ -469,8 +469,10 @@ const getCustomers = async (req, res) => {
     phone
     purpose
     businessName
+    zoneId
     zoneCode
     zoneName
+    villageId
     villageName
     collectorName
     status
