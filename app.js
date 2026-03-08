@@ -7,6 +7,7 @@ const appRoutes = require("./routes/appRoutes")
 const connectDB = require("./db/connect")
 const {requireAuth,checkUser }= require("./middleware/authMiddleware");
 const { runSeed } = require("./seeders/customerSeeder");
+const cors = require("cors")
 
 
 const app = express();
@@ -16,6 +17,9 @@ const app = express();
 app.use(express.static("public"));
 app.use(cookieParser())
 app.use(checkUser);
+
+app.use(cors());
+
 
  app.set("view engine","ejs");
 const PORT = process.env.PORT || 5000;
