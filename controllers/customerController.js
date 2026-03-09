@@ -1,208 +1,3 @@
-// const Customer = require('../models/Customer');
-// const { generateCustomerCode } = require('../utils/generateCustomerCode');  
-// const Village = require('../models/Village');
-// const Zone = require('../models/Zone');
-
-// const { getPagination } = require('../utils/pagination');
-// export const createCustomer = async (req, res) => {
-//   const { zoneId, villageId } = req.body;
-
-//   const zone = await Zone.findById(zoneId);
-//   const village = await Village.findById(villageId);
-
-//   if (!zone || !village)
-//     return apiResponse({ res, success: false, message: "Invalid zone/village" });
-
-//   const customerCode = await generateCustomerCode(
-//     zone.code,
-//     village.code
-//   );
-
-//   const customer = await Customer.create({
-//     ...req.body,
-//     customerCode,
-//     zoneCode: zone.code,
-//     villageName: village.name
-//   });
-
-//   await createNotification({
-//     type: "CUSTOMER_CREATED",
-//     message: `Customer ${customer.name} onboarded`,
-//     targetRoles: ["admin", "system"]
-//   });
-
-//   return apiResponse({
-//     res,
-//     message: "Customer created successfully",
-//     data: customer
-//   });
-// };
-
-// export const getCustomerById = async (req, res) => {
-//   try {
-//     const customer = await Customer.findOne({
-//       _id: req.params.id,
-//       deletedAt: null
-//     });
-
-//     if (!customer) {
-//       return apiResponse({
-//         res,
-//         success: false,
-//         message: "Customer not found",
-//         statusCode: 404
-//       });
-//     }
-
-//     return apiResponse({
-//       res,
-//       message: "Customer fetched successfully",
-//       data: customer
-//     });
-//   } catch (error) {
-//     return apiResponse({
-//       res,
-//       success: false,
-//       message: error.message
-//     });
-//   }
-// };
-
-
-// // export const getCustomers = async (req, res) => {
-// //   const customers = await Customer.find({ deletedAt: null });
-// //   return apiResponse({ res, data: customers });
-// // };
-
-
-// export const getCustomers = async (req, res) => {
-//   try {
-//     const {
-//       page,
-//       limit,
-
-//       zoneId,
-//       villageId,
-//       customerCode,
-//       phone,
-//       status,
-//       collectorId,
-//       meterNo,
-
-//       unpaidMin,
-//       unpaidMax,
-
-//       createdFrom,
-//       createdTo
-//     } = req.query;
-
-//     const { skip, limit: pageLimit, page: currentPage } = getPagination(page, limit);
-
-//     // 🔹 Base query (soft delete safe)
-//     const query = { deletedAt: null };
-
-//     // 🔹 Filters
-//     if (zoneId) query.zoneId = zoneId;
-//     if (villageId) query.villageId = villageId;
-//     if (status) query.status = status;
-//     if (collectorId) query.collectorId = collectorId;
-
-//     if (customerCode) {
-//       query.customerCode = { $regex: customerCode, $options: "i" };
-//     }
-
-//     if (phone) {
-//       query.phone = { $regex: phone, $options: "i" };
-//     }
-
-//     if (meterNo) {
-//       query["meter.meterNo"] = { $regex: meterNo, $options: "i" };
-//     }
-
-//     // 🔹 Balance filters
-//     if (unpaidMin || unpaidMax) {
-//       query["balances.unpaid"] = {};
-//       if (unpaidMin) query["balances.unpaid"].$gte = Number(unpaidMin);
-//       if (unpaidMax) query["balances.unpaid"].$lte = Number(unpaidMax);
-//     }
-
-//     // 🔹 Date filters
-//     if (createdFrom || createdTo) {
-//       query.createdAt = {};
-//       if (createdFrom) query.createdAt.$gte = new Date(createdFrom);
-//       if (createdTo) query.createdAt.$lte = new Date(createdTo);
-//     }
-
-//     // 🔹 Query execution
-//     const [customers, total] = await Promise.all([
-//       Customer.find(query)
-//         .sort({ createdAt: -1 })
-//         .skip(skip)
-//         .limit(pageLimit),
-
-//       Customer.countDocuments(query)
-//     ]);
-
-//     const totalPages = Math.ceil(total / pageLimit);
-
-//     return apiResponse({
-//       res,
-//       message: "Customers fetched successfully",
-//       data: {
-//         items: customers,
-//         pagination: {
-//           total,
-//           page: currentPage,
-//           limit: pageLimit,
-//           totalPages,
-//           hasNextPage: currentPage < totalPages,
-//           hasPrevPage: currentPage > 1
-//         }
-//       }
-//     });
-//   } catch (error) {
-//     return apiResponse({
-//       res,
-//       success: false,
-//       message: error.message
-//     });
-//   }
-// };
-
-
-// export const updateCustomer = async (req, res) => {
-//   const customer = await Customer.findOneAndUpdate(
-//     { _id: req.params.id, deletedAt: null },
-//     req.body,
-//     { new: true }
-//   );
-
-//   if (!customer)
-//     return apiResponse({ res, success: false, message: "Customer not found" });
-
-//   await createNotification({
-//     type: "CUSTOMER_UPDATED",
-//     message: `Customer ${customer.name} updated`,
-//     targetRoles: ["admin"]
-//   });
-
-//   return apiResponse({ res, message: "Customer updated", data: customer });
-// };
-
-// export const deleteCustomer = async (req, res) => {
-//   await Customer.findByIdAndUpdate(req.params.id, {
-//     deletedAt: new Date()
-//   });
-
-//   await createNotification({
-//     type: "CUSTOMER_DELETED",
-//     message: "Customer removed",
-//     targetRoles: ["admin"]
-//   });
-
-//   return apiResponse({ res, message: "Customer deleted" });
-// };
-
 const Customer = require("../models/customerModel");
 const Village = require("../models/villageModel");
 const Zone = require("../models/zoneModel");
@@ -211,12 +6,12 @@ const Billing = require("../models/billingModel")
 const Payment = require("../models/paymentModel")
 const PaymentAllocation = require("../models/allocation")
 const allocatePaymentFIFO = require("../utils/allocationHelper")
-
-
 const { generateCustomerCode } = require("../utils/generateCustomerCode");
 const {apiResponse} = require("../utils/apiResponse");
 const { createNotification } = require("../services/notificationService");
 const XLSX = require("xlsx");
+const PDFDocument = require("pdfkit");
+
 /**
  * CREATE CUSTOMER
  */
@@ -235,19 +30,19 @@ const createCustomer = async (req, res) => {
   //     success: false,
   //     message: "Customer with same name and phone already exists"
   //   });
+
   const existingCustomer = await Customer.findOne({
   phone,
   deletedAt: null
 });
 
-if (existingCustomer) {
+if (existingCustomer){
   return apiResponse({
     res,
     success: false,
     message: "Customer with this phone number already exists"
   });
 }
-
 
   const zone = await Zone.findOne({ _id: zoneId, deletedAt: null });
   const village = await Village.findOne({ _id: villageId, deletedAt: null });
@@ -334,81 +129,6 @@ if (existingCustomer) {
 /**
  * GET ALL CUSTOMERS (FILTERS + PAGINATION)
  */
-// const getCustomers = async (req, res) => {
-//   const {
-//     page = 1,
-//     limit = 10,
-//     zoneId,
-//     villageId,
-//     customerCode,
-//     name,
-//     phone,
-//     collectorId,
-//     status,
-//     hasBalance,
-//     minBalance,
-//     maxBalance,
-//     meterNo,
-//     dateFrom,
-//     dateTo
-//   } = req.query;
-
-//   const filter = { deletedAt: null };
-
-//   if (zoneId) filter.zoneId = zoneId;
-//   if (villageId) filter.villageId = villageId;
-//   if (customerCode) filter.customerCode = customerCode;
-//   if (status) filter.status = status;
-//   if (collectorId) filter.collectorId = collectorId;
-//   if (meterNo) filter.meterNo = meterNo;
-
-//   if (phone)
-//     filter.phone = { $regex: phone, $options: "i" };
-
-//   if (name)
-//     filter.name = { $regex: name, $options: "i" };
-
-//   if (hasBalance === "true")
-//     filter.unpaid = { $gt: 0 };
-
-//   if (hasBalance === "false")
-//     filter.unpaid = 0;
-
-//   if (minBalance || maxBalance) {
-//     filter.unpaid = {};
-//     if (minBalance) filter.unpaid.$gte = Number(minBalance);
-//     if (maxBalance) filter.unpaid.$lte = Number(maxBalance);
-//   }
-
-//   if (dateFrom || dateTo) {
-//     filter.createdAt = {};
-//     if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
-//     if (dateTo) filter.createdAt.$lte = new Date(dateTo);
-//   }
-
-//   const skip = (page - 1) * limit;
-
-//   const [customers, total] = await Promise.all([
-//     Customer.find(filter)
-//       .skip(skip)
-//       .limit(Number(limit))
-//       .sort({ createdAt: -1 }),
-//     Customer.countDocuments(filter)
-//   ]);
-
-//   return apiResponse({
-//     res,
-//     data: customers,
-//     pagination: {
-//       page: Number(page),
-//       limit: Number(limit),
-//       total,
-//       totalPages: Math.ceil(total / limit),
-//       hasNextPage: skip + customers.length < total
-//     }
-//   });
-// };
-
 const getCustomers = async (req, res) => {
   const {
     page = 1,
@@ -953,7 +673,157 @@ const toggleCustomerStatus = async (req, res) => {
 };
 
 
+const getCustomersReport = async (req, res) => {
+  try {
+    const {
+      zoneId,
+      villageId,
+      customerCode,
+      name,
+      phone,
+      collectorId,
+      status,
+      hasBalance,
+      minBalance,
+      maxBalance,
+      dateFrom,
+      dateTo
+    } = req.query;
+
+    const filter = { deletedAt: null };
+
+    if (zoneId) filter.zoneId = zoneId;
+    if (villageId) filter.villageId = villageId;
+    if (customerCode) filter.customerCode = customerCode;
+    if (status) filter.status = status;
+    if (collectorId) filter.collectorId = collectorId;
+
+    if (phone) filter.phone = { $regex: phone, $options: "i" };
+    if (name) filter.name = { $regex: name, $options: "i" };
+
+    if (hasBalance === "true") filter["balances.unpaid"] = { $gt: 0 };
+    if (hasBalance === "false") filter["balances.unpaid"] = 0;
+
+    if (minBalance || maxBalance) {
+      filter["balances.unpaid"] = {};
+      if (minBalance) filter["balances.unpaid"].$gte = Number(minBalance);
+      if (maxBalance) filter["balances.unpaid"].$lte = Number(maxBalance);
+    }
+
+    if (dateFrom || dateTo) {
+      filter.createdAt = {};
+      if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
+      if (dateTo) filter.createdAt.$lte = new Date(dateTo);
+    }
+
+    const customers = await Customer.find(filter)
+      .select(`
+        villageName
+        name
+        phone
+        houseNo
+        balances.unpaid
+        meter.meterNo
+        meter.lastReadAt
+        status
+      `)
+      .sort({ villageName: 1 })
+      .lean();
+
+    /* ---------------- PDF ---------------- */
+
+    const doc = new PDFDocument({
+      size: "A4",
+      layout: "landscape",
+      margin: 40
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=customers-report.pdf"
+    );
+
+    doc.pipe(res);
+
+    /* -------- HEADER -------- */
+
+    doc
+      .fontSize(18)
+      .text("GALDOGOB WATER COMPANY", { align: "center" });
+
+    doc.moveDown(0.5);
+
+    doc
+      .fontSize(14)
+      .text("Customers Report", { align: "center" });
+
+    doc
+      .fontSize(9)
+      .text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
+
+    doc.moveDown(2);
+
+    /* -------- TABLE HEADER -------- */
+
+    const tableTop = doc.y;
+    const colX = [40, 140, 300, 420, 500, 560, 640, 700];
+
+    doc.fontSize(10).font("Helvetica-Bold");
+
+    doc.text("Village", colX[0], tableTop);
+    doc.text("Name", colX[1], tableTop);
+    doc.text("Phone", colX[2], tableTop);
+    doc.text("House No", colX[3], tableTop);
+    doc.text("Balance", colX[4], tableTop);
+    doc.text("Meter No", colX[5], tableTop);
+    doc.text("Status", colX[6], tableTop);
+    doc.text("Last Read", colX[7], tableTop);
+
+    doc.moveTo(40, tableTop + 15)
+       .lineTo(800, tableTop + 15)
+       .stroke();
+
+    /* -------- TABLE ROWS -------- */
+
+    let y = tableTop + 25;
+
+    doc.font("Helvetica").fontSize(9);
+
+    customers.forEach((c) => {
+      const lastRead = c.meter?.lastReadAt
+        ? new Date(c.meter.lastReadAt).toLocaleDateString()
+        : "";
+
+      const balance = Number(c.balances?.unpaid ?? 0).toFixed(2);
+
+      doc.text(c.villageName ?? "", colX[0], y);
+      doc.text(c.name ?? "", colX[1], y);
+      doc.text(c.phone ?? "", colX[2], y);
+      doc.text(c.houseNo ?? "", colX[3], y);
+      doc.text(balance, colX[4], y);
+      doc.text(c.meter?.meterNo ?? "", colX[5], y);
+      doc.text(c.status ?? "", colX[6], y);
+      doc.text(lastRead, colX[7], y);
+
+      y += 20;
+
+      if (y > 520) {
+        doc.addPage();
+        y = 40;
+      }
+    });
+
+    doc.end();
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Failed to generate customer report" });
+  }
+};
 
 
 
-module.exports = {  createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer ,uploadCustomersFromExcel,getCustomerStatement,toggleCustomerStatus};
+
+
+module.exports = {  createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer ,uploadCustomersFromExcel,getCustomerStatement,toggleCustomerStatus,getCustomersReport};

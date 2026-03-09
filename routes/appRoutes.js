@@ -7,13 +7,13 @@ const { createRate, getCurrentRate, getAllRates, getSingleRate, deleteRate, upda
 const { createZone, getZones, updateZone, deleteZone } = require("../controllers/zoneController");
 const{ createNotificationController,getNotifications,getNotificationById,markAsRead,deleteNotification, markAllAsRead, getUnreadNotificationCount} = require("../controllers/notificationController")  ;
  const { createVillage, getVillages, getVillageById, updateVillage, deleteVillage } = require("../controllers/villageController");  
-const { createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer ,uploadCustomersFromExcel, getCustomerStatement, toggleCustomerStatus} = require("../controllers/customerController");
+const { createCustomer, getCustomers, getCustomerById, updateCustomer, deleteCustomer ,uploadCustomersFromExcel, getCustomerStatement, toggleCustomerStatus, getCustomersReport} = require("../controllers/customerController");
 const { createVisit, getVisits, getVisitById, deleteVisit } = require("../controllers/visitController");  
-const { billSingleCustomer, billAllCustomers, reverseBilling, adjustBilling, getBillings, getSingleBilling,billCustomersPerVillage,billCustomersPerZone, getUnbilledCustomers } = require("../controllers/billingController");
+const { billSingleCustomer, billAllCustomers, reverseBilling, adjustBilling, getBillings, getSingleBilling,billCustomersPerVillage,billCustomersPerZone, getUnbilledCustomers, generateUnbilledCustomersPDF, generateBillingReportPDF } = require("../controllers/billingController");
 const {createBillingPeriod,getBillingPeriods,getBillingPeriod,updateBillingPeriod,closeBillingPeriod,lockBillingPeriod,deleteBillingPeriod} = require("../controllers/billingPeriodController")
 
 const multer = require("multer");
-const { bulkClearPayments, paySingleCustomer, cancelPayment, getPayments, getSinglePayment } = require("../controllers/payment_controller");
+const { bulkClearPayments, paySingleCustomer, cancelPayment, getPayments, getSinglePayment, generatePaymentsReportPDF } = require("../controllers/payment_controller");
 const upload = multer({ storage: multer.memoryStorage() });
 const router = Router();
 
@@ -84,6 +84,7 @@ router.delete("/village/:id", deleteVillage);
 //customers
 router.post("/customer", createCustomer);
 router.get("/customer", getCustomers);
+router.get("/customer/reports/pdf", getCustomersReport);
 router.get("/customer/:id", getCustomerById);
 router.put("/customer/:id", updateCustomer);
 router.delete("/customer/:id", deleteCustomer);
@@ -103,6 +104,8 @@ router.post("/billing/manual/:customerId",billSingleCustomer);
 router.post("/billing/zone/:zoneId",billCustomersPerZone);
 router.post("/billing/village/:villageId",billCustomersPerVillage);
 router.post("/billing/run",billAllCustomers);
+router.get("/billing/reports/billings/pdf", generateBillingReportPDF);
+router.get("/billing/reports/unbilled-customers/pdf",generateUnbilledCustomersPDF);
 router.post("/billing/:billingId/reverse",reverseBilling);
 router.post("/billing/:billingId/adjust",adjustBilling);
 router.get("/billing",getBillings);
@@ -123,6 +126,7 @@ router.delete("/billing-periods/:id", deleteBillingPeriod);
 //payments
 router.post("/payments/clear",paySingleCustomer);
 router.post("/payments/bulk-clear",bulkClearPayments);
+router.get("/payments/reports/payments/pdf", generatePaymentsReportPDF);
 router.post("/payments/:id/cancel",cancelPayment);
 router.get( "/payments",getPayments);
 router.get("/payments/:id",getSinglePayment);

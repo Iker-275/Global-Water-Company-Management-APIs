@@ -6,6 +6,7 @@ const PaymentAllocation = require("../models/allocation")
 const { allocatePaymentFIFO }= require("../utils/allocationHelper")
 const { apiResponse } = require("../utils/apiResponse")
 const { createNotification } = require('../services/notificationService');
+const PDFDocument = require("pdfkit");
 
 
 
@@ -330,4 +331,149 @@ const getSinglePayment = async (req, res) => {
 };
 
 
-module.exports={getSinglePayment,getPayments,cancelPayment,bulkClearPayments,paySingleCustomer};
+const generatePaymentsReportPDF = async (req, res) => {
+  try {
+    const {
+      customerId,
+      zoneId,
+      villageId,
+      method,
+      status,
+      from,
+      to,
+      month,
+      year
+    } = req.query;
+
+    const filter = { deletedAt: null };
+
+    if (customerId) filter.customerId = customerId;
+    if (zoneId) filter.zoneId = zoneId;
+    if (villageId) filter.villageId = villageId;
+    if (method) filter.method = method;
+    if (status) filter.status = status;
+
+    if (from || to) {
+      filter.receivedAt = {};
+      if (from) filter.receivedAt.$gte = new Date(from);
+      if (to) filter.receivedAt.$lte = new Date(to);
+    }
+
+    if (month && year) {
+      const start = new Date(year, month - 1, 1);
+      const end = new Date(year, month, 0, 23, 59, 59);
+
+      filter.receivedAt = { $gte: start, $lte: end };
+    }
+
+    if (year && !month) {
+      const start = new Date(year, 0, 1);
+      const end = new Date(year, 11, 31, 23, 59, 59);
+
+      filter.receivedAt = { $gte: start, $lte: end };
+    }
+
+    const payments = await Payment.find(filter)
+      .populate("customerId", "name customerCode")
+      .sort({ receivedAt: -1 })
+      .lean();
+
+    const totalAmount = payments.reduce(
+      (sum, p) => sum + (p.amountCents || 0),
+      0
+    );
+
+    const doc = new PDFDocument({ margin: 40, size: "A4" });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=payments-report.pdf"
+    );
+
+    doc.pipe(res);
+
+    // HEADER
+    doc
+      .fontSize(20)
+      .text("GALDOGOB WATER COMPANY", { align: "center" });
+
+    doc
+      .fontSize(16)
+      .text("PAYMENTS COLLECTION REPORT", { align: "center" });
+
+    doc.moveDown();
+
+    doc.fontSize(11);
+
+    if (from) doc.text(`From: ${from}`);
+    if (to) doc.text(`To: ${to}`);
+    if (month) doc.text(`Month: ${month}`);
+    if (year) doc.text(`Year: ${year}`);
+
+    doc.text(`Generated At: ${new Date().toLocaleString()}`);
+
+    doc.moveDown();
+
+    doc.text(`Total Transactions: ${payments.length}`);
+    doc.text(`Total Amount: ${totalAmount.toFixed(2)} USD`);
+
+    doc.moveDown();
+
+     const tableTop = 200;
+  const rowHeight = 20;
+
+    const headers = [
+      "No",
+      "Date",
+      // "Customer Code",
+      "Customer Name",
+      "Method",
+      "Amount",
+      "Status"
+    ];
+
+    const colX = [40, 80, 160, 290, 380, 460];
+
+    headers.forEach((h, i) => {
+      doc.font("Helvetica-Bold").text(h, colX[i],tableTop);
+    });
+
+    let y = doc.y + 10;
+
+    payments.forEach((p, index) => {
+      const c = p.customerId || {};
+
+      doc.font("Helvetica");
+
+      doc.text(index + 1, colX[0], y);
+      doc.text(new Date(p.receivedAt).toLocaleDateString(), colX[1], y);
+      // doc.text(c.customerCode || "", colX[2], y);
+      doc.text(c.name || "", colX[2], y);
+      doc.text(p.method || "", colX[3], y);
+      doc.text(p.amountCents.toFixed(2), colX[4], y);
+      doc.text(p.status || "", colX[5], y);
+
+      y += 20;
+
+      if (y > 750) {
+        doc.addPage();
+        y = 50;
+      }
+    });
+
+    doc.moveDown(2);
+    doc.text(`TOTAL COLLECTED: ${totalAmount.toFixed(2)} USD`);
+
+    doc.end();
+  } catch (error) {
+    return apiResponse({
+      res,
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+
+module.exports={getSinglePayment,getPayments,cancelPayment,bulkClearPayments,paySingleCustomer,generatePaymentsReportPDF};

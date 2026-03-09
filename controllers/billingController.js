@@ -10,6 +10,8 @@ const UnbilledCustomer = require("../models/unbilledModel");
 const BillingRun = require("../models/billingRun");
 const Village = require("../models/villageModel");
 require("../models/userModel");
+const PDFDocument = require("pdfkit");
+
 
 const { getPeriodRange } = require("../utils/dateRange");
 
@@ -1069,9 +1071,309 @@ const getUnbilledCustomers = async (req, res) => {
 
 
 
+const generateBillingReportPDF = async (req, res) => {
+  try {
+    const {
+      customerId,
+      zoneId,
+      villageId,
+      collectorId,
+      billingPeriod,
+      billingType,
+      status,
+      minAmount,
+      maxAmount,
+      dateFrom,
+      dateTo,
+      unpaidOnly
+    } = req.query;
+
+    const filter = { deletedAt: null };
+
+    if (customerId) filter.customerId = customerId;
+    if (billingPeriod) filter.billingPeriod = billingPeriod;
+    if (billingType) filter.billingType = billingType;
+    if (status) filter.status = status;
+    if (zoneId) filter.zoneId = zoneId;
+    if (villageId) filter.villageId = villageId;
+    if (collectorId) filter.collectorId = collectorId;
+
+    if (minAmount || maxAmount) {
+      filter.totalAmount = {};
+      if (minAmount) filter.totalAmount.$gte = Number(minAmount);
+      if (maxAmount) filter.totalAmount.$lte = Number(maxAmount);
+    }
+
+    if (unpaidOnly === "true") {
+      filter.totalAmount = { $gt: 0 };
+    }
+
+    if (dateFrom || dateTo) {
+      filter.createdAt = {};
+      if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
+      if (dateTo) filter.createdAt.$lte = new Date(dateTo);
+    }
+
+    const billings = await Billing.find(filter)
+      .populate("customerId", "name customerCode phone")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const totalAmount = billings.reduce((s, b) => s + (b.totalAmount || 0), 0);
+    const totalUnits = billings.reduce((s, b) => s + (b.unitsConsumed || 0), 0);
+
+    const doc = new PDFDocument({
+      margin: 40,
+      size: "A4",
+      layout: "landscape"
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=billing-report-${billingPeriod || "report"}.pdf`
+    );
+
+    doc.pipe(res);
+
+    // HEADER
+    doc.fontSize(20).text("GALDOGOB WATER COMPANY", { align: "center" });
+    doc.fontSize(16).text("BILLING REPORT", { align: "center" });
+
+    doc.moveDown();
+
+    doc.fontSize(11);
+
+    if (billingPeriod) doc.text(`Billing Period: ${billingPeriod}`);
+    if (zoneId) doc.text(`Zone: ${zoneId}`);
+    if (villageId) doc.text(`Village: ${villageId}`);
+    if (status) doc.text(`Status: ${status}`);
+
+    doc.text(`Generated At: ${new Date().toLocaleString()}`);
+
+    doc.moveDown();
+
+    doc.text(`Total Bills: ${billings.length}`);
+    doc.text(`Total Units: ${totalUnits.toFixed(2)}`);
+    doc.text(`Total Billed: ${totalAmount.toFixed(2)} USD`);
+
+    doc.moveDown();
+    const tableTop = 200;
+  const rowHeight = 20;
+
+    const headers = [
+      "No",
+      // "Customer Code",
+      "Name",
+      "Phone",
+      "Prev",
+      "Curr",
+      "Units",
+      "Rate",
+      "Amount",
+      // "Fixed",
+      "Penalty",
+      "Total",
+      "Status"
+    ];
+
+    const colX = [
+      40, 80, 200, 300, 340, 380, 420, 470, 560, 610, 660, 710, 760
+    ];
+
+    headers.forEach((h, i) => {
+      doc.font("Helvetica-Bold").text(h, colX[i],tableTop);
+    });
+
+    let y = doc.y + 10;
+
+    billings.forEach((b, index) => {
+      const c = b.customerId || {};
+
+      doc.font("Helvetica");
+
+      doc.text(index + 1, colX[0], y);
+      // doc.text(c.customerCode || "", colX[1], y);
+      doc.text(c.name || "", colX[1], y);
+      doc.text(c.phone || "", colX[2], y);
+
+      doc.text(b.previousReading ?? "", colX[3], y);
+      doc.text(b.currentReading ?? "", colX[4], y);
+      doc.text(b.unitsConsumed ?? "", colX[5], y);
+      doc.text(b.ratePerUnit ?? "", colX[6], y);
+      doc.text((b.amount ?? 0).toFixed(2), colX[7], y);
+      // doc.text(b.fixedCharges ?? "", colX[9], y);
+      doc.text(b.penalties ?? "", colX[8], y);
+      doc.text((b.totalAmount ?? 0).toFixed(2), colX[9], y);
+      doc.text(b.status ?? "", colX[10], y);
+
+      y += 20;
+
+      if (y > 520) {
+        doc.addPage();
+        y = 50;
+      }
+    });
+
+    doc.moveDown(2);
+    doc.text(`TOTAL BILLED AMOUNT: ${totalAmount.toFixed(2)} USD`);
+
+    doc.end();
+  } catch (error) {
+    return apiResponse({
+      res,
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+
+const generateUnbilledCustomersPDF = async (req, res) => {
+  const {
+    billingPeriod,
+    zoneId,
+    villageId,
+    reason,
+    billingRunId,
+    dateFrom,
+    dateTo
+  } = req.query;
+
+  if (!billingPeriod) {
+    return apiResponse({
+      res,
+      success: false,
+      message: "billingPeriod is required"
+    });
+  }
+
+  const filter = {
+    billingPeriod,
+    deletedAt: null
+  };
+
+  if (reason) filter.reason = reason;
+  if (billingRunId) filter.billingRunId = billingRunId;
+
+  if (dateFrom || dateTo) {
+    filter.createdAt = {};
+    if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
+    if (dateTo) filter.createdAt.$lte = new Date(dateTo);
+  }
+
+  const data = await UnbilledCustomer.find(filter)
+    .populate({
+      path: "customerId",
+      select: "name phone zoneCode villageName houseNo balances",
+     // select: "name customerCode phone zoneCode villageName houseNo balances",
+
+      populate: [
+        { path: "zoneId", select: "name" },
+        { path: "villageId", select: "name" }
+      ]
+    })
+    .populate("billingRunId", "runType billingPeriod createdAt")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const filteredData = data.filter((u) => {
+    if (zoneId && u.customerId?.zoneId?._id.toString() !== zoneId)
+      return false;
+
+    if (villageId && u.customerId?.villageId?._id.toString() !== villageId)
+      return false;
+
+    return true;
+  });
+
+  const doc = new PDFDocument({ margin: 40, size: "A4" });
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename=unbilled-customers-${billingPeriod}.pdf`
+  );
+
+  doc.pipe(res);
+
+  // HEADER
+  doc
+    .fontSize(20)
+    .text("GALDOGOB WATER COMPANY", { align: "center" });
+
+  doc
+    .fontSize(16)
+    .text("UNBILLED CUSTOMERS REPORT", { align: "center" });
+
+  doc.moveDown();
+
+  doc.fontSize(11);
+  doc.text(`Billing Period: ${billingPeriod}`);
+  doc.text(`Generated At: ${new Date().toLocaleString()}`);
+  doc.text(`Total Records: ${filteredData.length}`);
+
+  doc.moveDown();
+
+  // TABLE HEADER
+  const tableTop = 200;
+  const rowHeight = 20;
+
+  const headers = [
+    "No",
+    // "Customer Code",
+    "Name",
+    "Phone",
+    "Zone",
+    "Village",
+    "House",
+    "Bal."
+  ];
+
+  const colX = [40, 80, 220, 320, 390, 460, 520, ];
+  // const colX = [40, 80, 190, 300, 360, 410, 470, 520];
+
+
+  headers.forEach((h, i) => {
+    doc.font("Helvetica-Bold").text(h, colX[i], tableTop);
+  });
+
+  let y = tableTop + 20;
+
+  filteredData.forEach((item, index) => {
+    const c = item.customerId;
+
+    doc.font("Helvetica");
+
+    doc.text(index + 1, colX[0], y);
+    // doc.text(c.customerCode || "", colX[1], y);
+    doc.text(c.name || "", colX[1], y);
+    doc.text(c.phone || "", colX[2], y);
+    doc.text(c.zoneId?.name || "", colX[3], y);
+    doc.text(c.villageId?.name || "", colX[4], y);
+    doc.text(c.houseNo || "", colX[5], y);
+    doc.text(c.balances?.unpaid || 0, colX[6], y);
+
+    y += rowHeight;
+
+    if (y > 750) {
+      doc.addPage();
+      y = 50;
+    }
+  });
+
+  doc.moveDown(2);
+
+  doc.text(`Total Customers: ${filteredData.length}`);
+
+  doc.end();
+};
+
+
+
 
 module.exports = { billCustomersPerZone, billCustomersPerVillage, billAllCustomers, billSingleCustomer, 
-  reverseBilling, adjustBilling, tryAutoBillVisit, getBillings, getSingleBilling ,getUnbilledCustomers};
+  reverseBilling, adjustBilling, tryAutoBillVisit, getBillings, getSingleBilling ,getUnbilledCustomers,generateUnbilledCustomersPDF,generateBillingReportPDF};
 
 
 //   const period = await BillingPeriod.findOne({
