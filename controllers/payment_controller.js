@@ -3,7 +3,7 @@ const Billing = require("../models/billingModel")
 
 const Payment = require("../models/paymentModel")
 const PaymentAllocation = require("../models/allocation")
-const { allocatePaymentFIFO }= require("../utils/allocationHelper")
+const { allocatePaymentFIFO ,reversePaymentAllocations } = require("../utils/allocationHelper")
 const { apiResponse } = require("../utils/apiResponse")
 const { createNotification } = require('../services/notificationService');
 const PDFDocument = require("pdfkit");
@@ -34,11 +34,14 @@ const paySingleCustomer = async (req, res) => {
     createdBy: userId
   });
 
+
   const { allocated } = await allocatePaymentFIFO({
     customerId,
     paymentId: payment._id,
     amountCents
   });
+
+
 
   await Customer.updateOne(
     { _id: customerId },
@@ -50,12 +53,12 @@ const paySingleCustomer = async (req, res) => {
     }
   );
 
-  
-     await createNotification({
-        type: "CUSTOMER_PAYMENT",
-        message: `Customer ${customer.name} payment made`,
-        targetRoles: ["admin","system"]
-      });
+
+  await createNotification({
+    type: "CUSTOMER_PAYMENT",
+    message: `Customer ${customer.name} payment made`,
+    targetRoles: ["admin", "system"]
+  });
 
   return apiResponse({
     res,
@@ -111,11 +114,11 @@ const bulkClearPayments = async (req, res) => {
     results.push(payment._id);
   }
 
-   await createNotification({
-        type: "CUSTOMER_BULK_PAYMENT",
-        message: `Customer Bulk payment made`,
-        targetRoles: ["admin","system"]
-      });
+  await createNotification({
+    type: "CUSTOMER_BULK_PAYMENT",
+    message: `Customer Bulk payment made`,
+    targetRoles: ["admin", "system"]
+  });
 
   return apiResponse({
     res,
@@ -188,7 +191,7 @@ const bulkClearPayments = async (req, res) => {
 //   });
 // };
 
-const cancelPayment = async (req, res) => {
+const cancelPayment2 = async (req, res) => {
   const { id } = req.params;
   const { reason, userId } = req.body;
 
@@ -239,6 +242,146 @@ const cancelPayment = async (req, res) => {
     message: "Payment cancelled successfully"
   });
 };
+const cancelPayment3 = async (req, res) => {
+  const { id } = req.params;
+  const { reason, userId } = req.body;
+
+  const payment = await Payment.findOne({
+    _id: id,
+    status: "ACTIVE"
+  });
+
+  if (!payment)
+    return apiResponse({
+      res,
+      success: false,
+      message: "Active payment not found"
+    });
+
+  // Reverse allocations
+  await PaymentAllocation.updateMany(
+    { paymentId: payment._id },
+    { status: "REVERSED" }
+  );
+
+  // Create adjustment payment
+  await Payment.create({
+    customerId: payment.customerId,
+    zoneId: payment.zoneId,
+    villageId: payment.villageId,
+    amountCents: -payment.amountCents,
+    method: "ADJUSTMENT",
+    reversalOf: payment._id,
+    reason,
+    createdBy: userId
+  });
+
+  // Restore customer balance
+  await Customer.updateOne(
+    { _id: payment.customerId },
+    {
+      $inc: {
+        "balances.totalPaid": -payment.amountCents,
+        "balances.unpaid": payment.amountCents
+      }
+    }
+  );
+
+  // Mark payment cancelled
+  await Payment.updateOne(
+    { _id: payment._id },
+    { status: "CANCELLED" }
+  );
+
+  await createNotification({
+    type: "CUSTOMER_PAYMENT_CANCELLED",
+    message: `Payment cancelled for customer ${payment.customerId}`,
+    targetRoles: ["admin", "system"]
+  });
+
+  return apiResponse({
+    res,
+    message: "Payment cancelled successfully"
+  });
+};
+
+
+
+
+const cancelPayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason, userId } = req.body;
+
+    const payment = await Payment.findOne({
+      _id: id,
+      status: "ACTIVE"
+    });
+
+    if (!payment)
+      return apiResponse({
+        res,
+        success: false,
+        message: "Active payment not found"
+      });
+
+    // Reverse allocations
+    await reversePaymentAllocations({
+      paymentId: payment._id
+    });
+
+    // Create adjustment payment record
+    await Payment.create({
+      customerId: payment.customerId,
+      zoneId: payment.zoneId,
+      villageId: payment.villageId,
+      amountCents: -payment.amountCents,
+      method: "ADJUSTMENT",
+      reversalOf: payment._id,
+      reason,
+      createdBy: userId
+    });
+
+    // Restore balances
+    await Customer.updateOne(
+      { _id: payment.customerId },
+      {
+        $inc: {
+          "balances.totalPaid": -payment.amountCents,
+          "balances.unpaid": payment.amountCents
+        }
+      }
+    );
+
+    // Mark payment cancelled
+    await Payment.updateOne(
+      { _id: payment._id },
+      { status: "CANCELLED" }
+    );
+
+    await createNotification({
+      type: "CUSTOMER_PAYMENT_CANCELLED",
+      message: `Payment cancelled for customer ${payment.customerId}`,
+      targetRoles: ["admin", "system"]
+    });
+
+    return apiResponse({
+      res,
+      message: "Payment cancelled successfully"
+    });
+
+  } catch (error) {
+    return apiResponse({
+      res,
+      success: false,
+      message: error.message,
+      statusCode: 500
+    });
+  }
+};
+
+
+
 
 
 
@@ -420,8 +563,8 @@ const generatePaymentsReportPDF = async (req, res) => {
 
     doc.moveDown();
 
-     const tableTop = 200;
-  const rowHeight = 20;
+    const tableTop = 200;
+    const rowHeight = 20;
 
     const headers = [
       "No",
@@ -436,7 +579,7 @@ const generatePaymentsReportPDF = async (req, res) => {
     const colX = [40, 80, 160, 290, 380, 460];
 
     headers.forEach((h, i) => {
-      doc.font("Helvetica-Bold").text(h, colX[i],tableTop);
+      doc.font("Helvetica-Bold").text(h, colX[i], tableTop);
     });
 
     let y = doc.y + 10;
@@ -476,4 +619,4 @@ const generatePaymentsReportPDF = async (req, res) => {
 };
 
 
-module.exports={getSinglePayment,getPayments,cancelPayment,bulkClearPayments,paySingleCustomer,generatePaymentsReportPDF};
+module.exports = { getSinglePayment, getPayments, cancelPayment, bulkClearPayments, paySingleCustomer, generatePaymentsReportPDF };

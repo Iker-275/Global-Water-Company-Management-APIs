@@ -64,4 +64,57 @@ const allocatePaymentFIFO = async ({
   };
 };
 
-module.exports = { allocatePaymentFIFO }
+
+
+
+const reversePaymentAllocations = async ({ paymentId }) => {
+
+  // Find allocations tied to this payment
+  const allocations = await PaymentAllocation.find({ paymentId });
+
+  for (const alloc of allocations) {
+
+    // Delete allocation
+    await PaymentAllocation.deleteOne({ _id: alloc._id });
+
+    const bill = await Billing.findById(alloc.billingId);
+
+    if (!bill) continue;
+
+    // Recalculate paid amount
+    const remainingPaid = await PaymentAllocation.aggregate([
+      { $match: { billingId: bill._id } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$amountCents" }
+        }
+      }
+    ]);
+
+    const paid = remainingPaid[0]?.total || 0;
+
+    let newStatus = "ACTIVE";
+
+    if (paid > 0 && paid < bill.totalAmount) {
+      newStatus = "PARTIAL";
+    }
+
+    if (paid >= bill.totalAmount) {
+      newStatus = "PAID";
+    }
+
+    await Billing.updateOne(
+      { _id: bill._id },
+      { status: newStatus }
+    );
+  }
+
+  return { reversedAllocations: allocations.length };
+};
+
+
+
+
+
+module.exports = { allocatePaymentFIFO ,reversePaymentAllocations}

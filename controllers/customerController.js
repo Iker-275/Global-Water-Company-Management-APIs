@@ -18,19 +18,6 @@ const PDFDocument = require("pdfkit");
 const createCustomer = async (req, res) => {
   const { zoneId, villageId ,collectorId,phone,name,previousBalance} = req.body;
 
-  // const existingCustomer = await Customer.findOne({
-  //   phone: phone,
-  //   name: { $regex: `^${name}$`, $options: "i" },
-  //   deletedAt: null
-  // });
-
-  // if (existingCustomer)
-  //   return apiResponse({
-  //     res,
-  //     success: false,
-  //     message: "Customer with same name and phone already exists"
-  //   });
-
   const existingCustomer = await Customer.findOne({
   phone,
   deletedAt: null
