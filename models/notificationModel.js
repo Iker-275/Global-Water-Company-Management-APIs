@@ -35,7 +35,8 @@ const notificationSchema = new mongoose.Schema(
         "BILLING_PERIOD_CREATED",
         "ZONE_UPDATED",
         "ZONE_DELETED",
-        "CUSTOMER_STATUS_CHANGED"
+        "CUSTOMER_STATUS_CHANGED",
+        "ADMIN_NOTIFICATION"
 
 
       ],

@@ -128,74 +128,6 @@ const bulkClearPayments = async (req, res) => {
 };
 
 
-// const cancelPayment = async (req, res) => {
-//   const { id } = req.params;
-//   const { reason, userId } = req.body;
-
-//   const payment = await Payment.findOne({
-//     _id: id,
-//     status: "ACTIVE"
-//   });
-
-//   if (!payment)
-//     return apiResponse({
-//       res,
-//       success: false,
-//       message: "Active payment not found"
-//     });
-
-//   const allocations = await PaymentAllocation.find({
-//     paymentId: payment._id
-//   });
-
-//   for (const alloc of allocations) {
-//     await Billing.updateOne(
-//       { _id: alloc.billingId },
-//       { status: "ACTIVE" }
-//     );
-//   }
-
-//   await Customer.updateOne(
-//     { _id: payment.customerId },
-//     {
-//       $inc: {
-//         "balances.unpaid": payment.amountCents,
-//         "balances.totalPaid": -payment.amountCents
-//       }
-//     }
-//   );
-
-//   await Payment.create({
-//     customerId: payment.customerId,
-//     amountCents: -payment.amountCents,
-//     method: "ADJUSTMENT",
-//     reversalOf: payment._id,
-//     reason,
-//     createdBy: userId
-//   });
-
-//   await Payment.updateOne(
-//     { _id: payment._id },
-//     { status: "CANCELLED" }
-//   );
-
-//    await createNotification({
-//         type: "CUSTOMER_PAYMENT_CANCELLED",
-//         message: `Customer ${payment.customerId} payment cancelled`,
-//         targetRoles: ["admin","system"]
-//       });
-
-//   return apiResponse({
-//     res,
-//     message: "Payment cancelled successfully"
-//   });
-// };
-
-
-
-
-
-
 const cancelPayment = async (req, res) => {
   try {
     const { id } = req.params;
@@ -267,10 +199,6 @@ const cancelPayment = async (req, res) => {
     });
   }
 };
-
-
-
-
 
 
 const getPayments = async (req, res) => {
