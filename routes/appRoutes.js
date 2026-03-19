@@ -14,8 +14,12 @@ const {createBillingPeriod,getBillingPeriods,getBillingPeriod,updateBillingPerio
 
 const multer = require("multer");
 const { bulkClearPayments, paySingleCustomer, cancelPayment, getPayments, getSinglePayment, generatePaymentsReportPDF } = require("../controllers/payment_controller");
+const { getDashboard } = require("../controllers/dashboard_controller");
 const upload = multer({ storage: multer.memoryStorage() });
 const router = Router();
+
+
+router.get("/dashboard", getDashboard);
 
 router.get("/signup",signUp_get);
 router.post("/signup",signUp_post);
