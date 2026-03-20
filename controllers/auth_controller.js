@@ -47,12 +47,24 @@ const handleErrors = (err) => {
 
 //const maxAge = 1 * 24 * 60 * 60; //age in seconds -1 day
 const maxAge = 10 * 60; 
-const createToken = (id) => {
-    return jwt.sign({ id }, 'secrety', {
-        expiresIn: maxAge,
+// const createToken = (id) => {
+//     return jwt.sign({ id }, 'secrety', {
+//         expiresIn: maxAge,
 
-    });
-}
+//     });
+// }
+const createToken = (user) => {
+  return jwt.sign(
+    {
+      id: user._id,
+      email: user.email,
+      role: user.role,
+      active: user.active ?? true 
+    },
+    'secrety',
+    { expiresIn: maxAge }
+  );
+};
 
 const signUp_get = async (req, res) => {
     res.render("signup");
@@ -65,7 +77,7 @@ const signUp_post = async (req, res) => {
 
     try {
         const user = await User.create({ email, password, role });
-        const token = createToken(user._Id);
+        const token = createToken(user);
 
 
         res.status(201).json({ success: true, token, user });
@@ -96,7 +108,7 @@ const login_post = async (req, res) => {
             throw Error("User inactive");
         }
 
-        const token = createToken(user._id);
+        const token = createToken(user);
 
         res.cookie("jwt", token, {
             httpOnly: true,
