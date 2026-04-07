@@ -62,13 +62,13 @@ const customerSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-customerSchema.index(
-  { phone: 1, name: 1 },
-  {
-    unique: true,
-    partialFilterExpression: { deletedAt: null }
-  }
-);
+// customerSchema.index(
+//   { phone: 1, name: 1 },
+//   {
+//     unique: true,
+//     partialFilterExpression: { deletedAt: null }
+//   }
+// );
 customerSchema.index({ zoneId: 1 });
 customerSchema.index({ villageId: 1 });
 // customerSchema.index({ customerCode: 1 });
