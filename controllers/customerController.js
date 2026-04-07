@@ -15,21 +15,10 @@ const PDFDocument = require("pdfkit");
 /**
  * CREATE CUSTOMER
  */
+const { cleanMoney } = require("../utils/money");
+
 const createCustomer = async (req, res) => {
-  const { zoneId, villageId ,collectorId,phone,name,previousBalance} = req.body;
-
-  const existingCustomer = await Customer.findOne({
-  phone,
-  deletedAt: null
-});
-
-if (existingCustomer){
-  return apiResponse({
-    res,
-    success: false,
-    message: "Customer with this phone number already exists"
-  });
-}
+  const { zoneId, villageId, collectorId, previousBalance } = req.body;
 
   const zone = await Zone.findOne({ _id: zoneId, deletedAt: null });
   const village = await Village.findOne({ _id: villageId, deletedAt: null });
@@ -40,7 +29,6 @@ if (existingCustomer){
       success: false,
       message: "Invalid zone or village"
     });
-
 
   let collector = null;
 
@@ -77,6 +65,16 @@ if (existingCustomer){
     village.code
   );
 
+  // ✅ SAFE MONEY HANDLING
+  const safePreviousBalance = cleanMoney(previousBalance || 0);
+
+  const balances = {
+    previousBalance: safePreviousBalance,
+    totalPaid: 0,
+    expectedTotal: safePreviousBalance,
+    unpaid: safePreviousBalance
+  };
+
   const customer = await Customer.create({
     ...req.body,
     collectorName: collector ? collector.email : null,
@@ -88,12 +86,7 @@ if (existingCustomer){
     villageName: village.name,
     villageId: village._id,
     status: "active",
-    balances: {
-      previousBalance: previousBalance ? Number(previousBalance) : 0,
-      totalPaid: 0,
-      unpaid: previousBalance ? Number(previousBalance) : 0,
-      expectedTotal: 0
-    }
+    balances
   });
 
   await createNotification({
@@ -112,6 +105,103 @@ if (existingCustomer){
     data: customer
   });
 };
+// const createCustomer = async (req, res) => {
+//   const { zoneId, villageId ,collectorId,phone,name,previousBalance} = req.body;
+
+// //   const existingCustomer = await Customer.findOne({
+// //   phone,
+// //   deletedAt: null
+// // });
+
+// // if (existingCustomer){
+// //   return apiResponse({
+// //     res,
+// //     success: false,
+// //     message: "Customer with this phone number already exists"
+// //   });
+// // }
+
+//   const zone = await Zone.findOne({ _id: zoneId, deletedAt: null });
+//   const village = await Village.findOne({ _id: villageId, deletedAt: null });
+
+//   if (!zone || !village)
+//     return apiResponse({
+//       res,
+//       success: false,
+//       message: "Invalid zone or village"
+//     });
+
+
+//   let collector = null;
+
+//   if (collectorId) {
+//     collector = await User.findOne({
+//       _id: collectorId,
+//       deletedAt: null
+//     });
+
+//     if (!collector)
+//       return apiResponse({
+//         res,
+//         success: false,
+//         message: "Collector user not found"
+//       });
+
+//     if (collector.active !== true)
+//       return apiResponse({
+//         res,
+//         success: false,
+//         message: "Collector user is not active"
+//       });
+
+//     if (!["user", "employee", "admin"].includes(collector.role))
+//       return apiResponse({
+//         res,
+//         success: false,
+//         message: "User is not authorized as a collector"
+//       });
+//   }
+
+//   const customerCode = await generateCustomerCode(
+//     zone.code,
+//     village.code
+//   );
+
+//   const customer = await Customer.create({
+//     ...req.body,
+//     collectorName: collector ? collector.email : null,
+//     collectorId: collector ? collector._id : null,
+//     customerCode,
+//     zoneCode: zone.code,
+//     zoneId: zone._id,
+//     zoneName: zone.name,
+//     villageName: village.name,
+//     villageId: village._id,
+//     status: "active",
+//     balances: {
+//       previousBalance: previousBalance ? Number(previousBalance) : 0,
+//       totalPaid: 0,
+//       unpaid: previousBalance ? Number(previousBalance) : 0,
+//       expectedTotal: 0
+//     }
+//   });
+
+//   await createNotification({
+//     type: "CUSTOMER_CREATED",
+//     message: `Customer ${customer.name} onboarded`,
+//     targetRoles: ["admin", "system"],
+//     relatedEntity: {
+//       entityType: "customer",
+//       entityId: customer._id
+//     }
+//   });
+
+//   return apiResponse({
+//     res,
+//     message: "Customer created successfully",
+//     data: customer
+//   });
+// };
 
 /**
  * GET ALL CUSTOMERS (FILTERS + PAGINATION)
@@ -236,27 +326,82 @@ const getCustomers = async (req, res) => {
 /**
  * UPDATE CUSTOMER
  */
+// const updateCustomer = async (req, res) => {
+
+//   const { zoneId, villageId ,phone,name} = req.body;
+
+//   //   if (phone || name) {
+//   //   const duplicate = await Customer.findOne({
+//   //     _id: { $ne: req.params.id },
+//   //     phone: phone,
+//   //     name: name
+//   //       ? { $regex: `^${name}$`, $options: "i" }
+//   //       : undefined,
+//   //     deletedAt: null
+//   //   });
+
+//   //   if (duplicate)
+//   //     return apiResponse({
+//   //       res,
+//   //       success: false,
+//   //       message: "Another customer with same name and phone already exists"
+//   //     });
+//   // }
+
+//   if (zoneId || villageId) {
+//     const zone = zoneId
+//       ? await Zone.findOne({ _id: zoneId, deletedAt: null })
+//       : null;
+
+//     const village = villageId
+//       ? await Village.findOne({ _id: villageId, deletedAt: null })
+//       : null;
+
+//     if (zoneId && !zone)
+//       return apiResponse({ res, success: false, message: "Invalid zone" });
+
+//     if (villageId && !village)
+//       return apiResponse({ res, success: false, message: "Invalid village" });
+
+//     if (zone) zoneCode = zone.code;
+//     if (village) villageName = village.name;
+//   }
+
+//   const customer = await Customer.findOneAndUpdate(
+//     { _id: req.params.id, deletedAt: null },
+//     req.body,
+//     { new: true }
+//   );
+
+//   if (!customer)
+//     return apiResponse({ res, success: false, message: "Customer not found" });
+
+//   await createNotification({
+//     type: "CUSTOMER_UPDATED",
+//     message: `Customer ${customer.name} updated`,
+//     targetRoles: ["admin"]
+//   });
+
+//   return apiResponse({
+//     res,
+//     message: "Customer updated successfully",
+//     data: customer
+//   });
+// };
+
+
+
 const updateCustomer = async (req, res) => {
+  const { zoneId, villageId, previousBalance } = req.body;
 
-  const { zoneId, villageId ,phone,name} = req.body;
+  const updateData = { ...req.body };
 
-    if (phone || name) {
-    const duplicate = await Customer.findOne({
-      _id: { $ne: req.params.id },
-      phone: phone,
-      name: name
-        ? { $regex: `^${name}$`, $options: "i" }
-        : undefined,
-      deletedAt: null
-    });
+  // ❌ NEVER allow direct overwrite of computed fields
+  delete updateData.balances;
 
-    if (duplicate)
-      return apiResponse({
-        res,
-        success: false,
-        message: "Another customer with same name and phone already exists"
-      });
-  }
+  // -----------------------------
+  // Validate zone & village
+  // -----------------------------
   if (zoneId || villageId) {
     const zone = zoneId
       ? await Zone.findOne({ _id: zoneId, deletedAt: null })
@@ -272,18 +417,60 @@ const updateCustomer = async (req, res) => {
     if (villageId && !village)
       return apiResponse({ res, success: false, message: "Invalid village" });
 
-    if (zone) zoneCode = zone.code;
-    if (village) villageName = village.name;
+    if (zone) {
+      updateData.zoneCode = zone.code;
+      updateData.zoneName = zone.name;
+      updateData.zoneId = zone._id;
+    }
+
+    if (village) {
+      updateData.villageName = village.name;
+      updateData.villageId = village._id;
+    }
   }
 
+  // -----------------------------
+  // Fetch current customer
+  // -----------------------------
+  const existingCustomer = await Customer.findOne({
+    _id: req.params.id,
+    deletedAt: null
+  });
+
+  if (!existingCustomer)
+    return apiResponse({
+      res,
+      success: false,
+      message: "Customer not found"
+    });
+
+  // -----------------------------
+  // 💰 Handle balance updates safely
+  // -----------------------------
+  if (previousBalance !== undefined) {
+    const safePreviousBalance = cleanMoney(previousBalance);
+
+    const totalPaid = existingCustomer.balances?.totalPaid || 0;
+
+    const expectedTotal = cleanMoney(safePreviousBalance);
+    const unpaid = cleanMoney(expectedTotal - totalPaid);
+
+    updateData.balances = {
+      ...existingCustomer.balances,
+      previousBalance: safePreviousBalance,
+      expectedTotal,
+      unpaid
+    };
+  }
+
+  // -----------------------------
+  // Update customer
+  // -----------------------------
   const customer = await Customer.findOneAndUpdate(
     { _id: req.params.id, deletedAt: null },
-    req.body,
+    updateData,
     { new: true }
   );
-
-  if (!customer)
-    return apiResponse({ res, success: false, message: "Customer not found" });
 
   await createNotification({
     type: "CUSTOMER_UPDATED",
@@ -297,7 +484,6 @@ const updateCustomer = async (req, res) => {
     data: customer
   });
 };
-
 /**
  * DELETE CUSTOMER (SOFT)
  */

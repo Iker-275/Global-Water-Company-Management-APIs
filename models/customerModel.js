@@ -72,7 +72,7 @@ customerSchema.index(
 customerSchema.index({ zoneId: 1 });
 customerSchema.index({ villageId: 1 });
 // customerSchema.index({ customerCode: 1 });
-customerSchema.index({ phone: 1 });
+// customerSchema.index({ phone: 1 });
 customerSchema.index({ status: 1 });
 customerSchema.index({ collectorId: 1 });
 customerSchema.index({ "meter.meterNo": 1 });

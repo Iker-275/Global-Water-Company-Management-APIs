@@ -15,6 +15,8 @@ const PDFDocument = require("pdfkit");
 
 const { getPeriodRange } = require("../utils/dateRange");
 
+const { cleanMoney } = require("../utils/money");
+
 
 
 
@@ -111,14 +113,27 @@ const billCustomersPerZone = async (req, res) => {
 
       const unitsConsumed = currentReading - previousReading;
 
+      // let amount = unitsConsumed * rate.pricingPerUnit;
+
+      // if (rate.discount?.type === "percentage") {
+      //   amount -= (amount * rate.discount.value) / 100;
+      // }
+
+      // const totalAmount =
+      //   amount + (customer.balances?.previousBalance || 0);
+
       let amount = unitsConsumed * rate.pricingPerUnit;
 
       if (rate.discount?.type === "percentage") {
         amount -= (amount * rate.discount.value) / 100;
       }
 
-      const totalAmount =
-        amount + (customer.balances?.previousBalance || 0);
+      // 🔑 CLEAN VALUES
+      amount = cleanMoney(amount);
+
+      const totalAmount = cleanMoney(
+        amount + (customer.balances?.previousBalance || 0)
+      );
 
       await Billing.create({
         customerId: customer._id,
@@ -135,13 +150,16 @@ const billCustomersPerZone = async (req, res) => {
         visitId: visit._id,
         billedBy: userId
       });
+      const unpaid = cleanMoney(
+        totalAmount - (customer.balances?.totalPaid || 0)
+      );
 
       await Customer.updateOne(
         { _id: customer._id },
         {
           "balances.expectedTotal": totalAmount,
           "balances.unpaid":
-            totalAmount - (customer.balances?.totalPaid || 0)
+            unpaid
         }
       );
 
@@ -270,7 +288,16 @@ const billSingleCustomer = async (req, res) => {
 
   const previousBalance = customer.balances?.previousBalance || 0;
 
- // console.log("Previous Balance: " + previousBalance);
+  // console.log("Previous Balance: " + previousBalance);
+
+  // let amount = unitsConsumed * rate.pricingPerUnit;
+
+  // if (rate.discount?.type === "percentage") {
+  //   amount -= (amount * rate.discount.value) / 100;
+  // }
+
+  // const totalAmount =
+  //   amount + (customer.balances?.previousBalance || 0);
 
   let amount = unitsConsumed * rate.pricingPerUnit;
 
@@ -278,11 +305,15 @@ const billSingleCustomer = async (req, res) => {
     amount -= (amount * rate.discount.value) / 100;
   }
 
-  const totalAmount =
-    amount + (customer.balances?.previousBalance || 0);
+  // 🔑 CLEAN VALUES
+  amount = cleanMoney(amount);
 
-    // console.log("Amount: " + amount);
-    // console.log("Total Amount: " + totalAmount);
+  const totalAmount = cleanMoney(
+    amount + (customer.balances?.previousBalance || 0)
+  );
+
+  // console.log("Amount: " + amount);
+  // console.log("Total Amount: " + totalAmount);
 
   const bill = await Billing.create({
     customerId,
@@ -298,6 +329,9 @@ const billSingleCustomer = async (req, res) => {
     visitId: visit._id,
     billedBy: userId
   });
+  const unpaid = cleanMoney(
+    totalAmount - (customer.balances?.totalPaid || 0)
+  );
 
   // Update customer snapshot
   await Customer.updateOne(
@@ -305,7 +339,7 @@ const billSingleCustomer = async (req, res) => {
     {
       "balances.expectedTotal": totalAmount,
       "balances.unpaid":
-        totalAmount - (customer.balances?.totalPaid || 0)
+        unpaid
     }
   );
 
@@ -371,7 +405,7 @@ const billCustomersPerVillage = async (req, res) => {
         customerId: customer._id,
         billingPeriod,
         status: { $ne: "REVERSED" }
-      //  status: "ACTIVE"
+        //  status: "ACTIVE"
       });
       if (existingBill) continue;
 
@@ -405,13 +439,26 @@ const billCustomersPerVillage = async (req, res) => {
 
       const unitsConsumed = currentReading - previousReading;
 
+      // let amount = unitsConsumed * rate.pricingPerUnit;
+      // if (rate.discount?.type === "percentage") {
+      //   amount -= (amount * rate.discount.value) / 100;
+      // }
+
+      // const totalAmount =
+      //   amount + (customer.balances?.previousBalance || 0);
+
       let amount = unitsConsumed * rate.pricingPerUnit;
+
       if (rate.discount?.type === "percentage") {
         amount -= (amount * rate.discount.value) / 100;
       }
 
-      const totalAmount =
-        amount + (customer.balances?.previousBalance || 0);
+      // 🔑 CLEAN VALUES
+      amount = cleanMoney(amount);
+
+      const totalAmount = cleanMoney(
+        amount + (customer.balances?.previousBalance || 0)
+      );
 
       await Billing.create({
         customerId: customer._id,
@@ -428,13 +475,16 @@ const billCustomersPerVillage = async (req, res) => {
         visitId: visit._id,
         billedBy: userId
       });
+      const unpaid = cleanMoney(
+        totalAmount - (customer.balances?.totalPaid || 0)
+      );
 
       await Customer.updateOne(
         { _id: customer._id },
         {
           "balances.expectedTotal": totalAmount,
           "balances.unpaid":
-            totalAmount - (customer.balances?.totalPaid || 0)
+            unpaid
         }
       );
 
@@ -506,7 +556,7 @@ const billAllCustomers = async (req, res) => {
     deletedAt: null,
     status: "active"
   });
-  
+
 
   let billed = 0;
   let unbilled = 0;
@@ -562,14 +612,27 @@ const billAllCustomers = async (req, res) => {
 
       const unitsConsumed = currentReading - previousReading;
 
+      // let amount = unitsConsumed * rate.pricingPerUnit;
+
+      // if (rate.discount?.type === "percentage") {
+      //   amount -= (amount * rate.discount.value) / 100;
+      // }
+
+      // const totalAmount =
+      //   amount + (customer.balances?.previousBalance || 0);
+
       let amount = unitsConsumed * rate.pricingPerUnit;
 
       if (rate.discount?.type === "percentage") {
         amount -= (amount * rate.discount.value) / 100;
       }
 
-      const totalAmount =
-        amount + (customer.balances?.previousBalance || 0);
+      // 🔑 CLEAN VALUES
+      amount = cleanMoney(amount);
+
+      const totalAmount = cleanMoney(
+        amount + (customer.balances?.previousBalance || 0)
+      );
 
       // 7️⃣ Create bill
       await Billing.create({
@@ -592,6 +655,9 @@ const billAllCustomers = async (req, res) => {
         visitId: visit._id,
         billedBy: userId
       });
+      const unpaid = cleanMoney(
+        totalAmount - (customer.balances?.totalPaid || 0)
+      );
 
       // 8️⃣ Update customer snapshot
       await Customer.updateOne(
@@ -599,7 +665,7 @@ const billAllCustomers = async (req, res) => {
         {
           "balances.expectedTotal": totalAmount,
           "balances.unpaid":
-            totalAmount - (customer.balances?.totalPaid || 0)
+            unpaid
         }
       );
 
@@ -674,7 +740,17 @@ const tryAutoBillVisit = async (visit) => {
   if (!rate) return;
 
   const units = visit.currentReading - previousReading;
-  const amount = units * rate.pricePerUnit;
+  // const amount = units * rate.pricePerUnit;
+  let amount = units * rate.pricingPerUnit;
+
+  if (rate.discount?.type === "percentage") {
+    amount -= (amount * rate.discount.value) / 100;
+  }
+
+  // 🔑 CLEAN VALUES
+  amount = cleanMoney(amount);
+
+
 
   const bill = await Billing.create({
     customerId: customer._id,
@@ -687,6 +763,10 @@ const tryAutoBillVisit = async (visit) => {
     billingType: "AUTO_VISIT"
   });
 
+  const unpaid = cleanMoney(
+    amount - (customer.balances?.totalPaid || 0)
+  );
+
   await Customer.updateOne(
     { _id: customer._id },
     {
@@ -694,7 +774,7 @@ const tryAutoBillVisit = async (visit) => {
       "meter.lastReadAt": visit.visitDate,
       "balances.expectedTotal": amount,
       "balances.unpaid":
-        amount - (customer.balances.totalPaid || 0)
+        unpaid
     }
   );
 
@@ -728,8 +808,8 @@ const reverseBilling = async (req, res) => {
       success: false,
       message: "Customer not found"
     });
-// console.log("Bill to reverse: " + bill);
-// console.log("Customer: " + customer);
+  // console.log("Bill to reverse: " + bill);
+  // console.log("Customer: " + customer);
   // Create reversal bill
   const reversal = await Billing.create({
     customerId: bill.customerId,
@@ -739,8 +819,8 @@ const reverseBilling = async (req, res) => {
     visitId: bill.visitId,
     currentReading: bill.currentReading,
     previousReading: bill.previousReading,
-    ratePerUnit: bill.ratePerUnit, 
-   // fixedCharges: -bill.fixedCharges,
+    ratePerUnit: bill.ratePerUnit,
+    // fixedCharges: -bill.fixedCharges,
     totalAmount: -bill.totalAmount,
     billingType: "REVERSAL",
     status: "REVERSED",
@@ -753,7 +833,7 @@ const reverseBilling = async (req, res) => {
   // Update original bill
   await Billing.updateOne(
     { _id: bill._id },
-    { status: "REVERSED" ,}
+    { status: "REVERSED", }
   );
 
   // Restore customer balances
@@ -1022,7 +1102,8 @@ const getUnbilledCustomers = async (req, res) => {
       path: "customerId",
       select: "name customerCode phone zoneCode villageName houseNo balances",
       populate: [
-        { path: "zoneId",
+        {
+          path: "zoneId",
           select: "name"
         },
         {
@@ -1159,7 +1240,7 @@ const generateBillingReportPDF = async (req, res) => {
 
     doc.moveDown();
     const tableTop = 200;
-  const rowHeight = 20;
+    const rowHeight = 20;
 
     const headers = [
       "No",
@@ -1182,7 +1263,7 @@ const generateBillingReportPDF = async (req, res) => {
     ];
 
     headers.forEach((h, i) => {
-      doc.font("Helvetica-Bold").text(h, colX[i],tableTop);
+      doc.font("Helvetica-Bold").text(h, colX[i], tableTop);
     });
 
     let y = doc.y + 10;
@@ -1266,7 +1347,7 @@ const generateUnbilledCustomersPDF = async (req, res) => {
     .populate({
       path: "customerId",
       select: "name phone zoneCode villageName houseNo balances",
-     // select: "name customerCode phone zoneCode villageName houseNo balances",
+      // select: "name customerCode phone zoneCode villageName houseNo balances",
 
       populate: [
         { path: "zoneId", select: "name" },
@@ -1330,7 +1411,7 @@ const generateUnbilledCustomersPDF = async (req, res) => {
     "Bal."
   ];
 
-  const colX = [40, 80, 220, 320, 390, 460, 520, ];
+  const colX = [40, 80, 220, 320, 390, 460, 520,];
   // const colX = [40, 80, 190, 300, 360, 410, 470, 520];
 
 
@@ -1372,8 +1453,10 @@ const generateUnbilledCustomersPDF = async (req, res) => {
 
 
 
-module.exports = { billCustomersPerZone, billCustomersPerVillage, billAllCustomers, billSingleCustomer, 
-  reverseBilling, adjustBilling, tryAutoBillVisit, getBillings, getSingleBilling ,getUnbilledCustomers,generateUnbilledCustomersPDF,generateBillingReportPDF};
+module.exports = {
+  billCustomersPerZone, billCustomersPerVillage, billAllCustomers, billSingleCustomer,
+  reverseBilling, adjustBilling, tryAutoBillVisit, getBillings, getSingleBilling, getUnbilledCustomers, generateUnbilledCustomersPDF, generateBillingReportPDF
+};
 
 
 //   const period = await BillingPeriod.findOne({
